@@ -18,6 +18,7 @@ public sealed class ArenaSimulation
     private readonly Dictionary<Guid, long> _shieldReadyTick = new();
     private readonly Dictionary<Guid, long> _magnetUntilTick = new();
     private readonly Dictionary<Guid, long> _magnetReadyTick = new();
+    private readonly Dictionary<Guid, long> _boundaryPenaltyReadyTick = new();
     private readonly ArenaZone[] _zones =
     {
         new("speed-north", "speed", new Vector2(800, 430), 240),
@@ -63,6 +64,7 @@ public sealed class ArenaSimulation
         {
             _players.Remove(id);
             _invulnerableUntilTick.Remove(id);
+            _boundaryPenaltyReadyTick.Remove(id);
         }
     }
 
@@ -120,7 +122,21 @@ public sealed class ArenaSimulation
                 var pull = new Vector2(gravity.Position.X - player.Position.X, gravity.Position.Y - player.Position.Y).Normalized;
                 next += pull * 55 * seconds;
             }
-            player = player with { Position = new Vector2(Math.Clamp(next.X, 0, ArenaWidth), Math.Clamp(next.Y, 0, ArenaHeight)) };
+            var hitBoundary = next.X <= player.Radius || next.X >= ArenaWidth - player.Radius
+                || next.Y <= player.Radius || next.Y >= ArenaHeight - player.Radius;
+            player = player with
+            {
+                Position = new Vector2(
+                    Math.Clamp(next.X, player.Radius, ArenaWidth - player.Radius),
+                    Math.Clamp(next.Y, player.Radius, ArenaHeight - player.Radius))
+            };
+            if (hitBoundary && (!_boundaryPenaltyReadyTick.TryGetValue(player.Id, out var penaltyReadyAt) || _tick >= penaltyReadyAt))
+            {
+                var penalty = Math.Min(player.Score, Math.Max(4, (int)Math.Ceiling(player.Score * 0.04)));
+                var reducedScore = Math.Max(0, player.Score - penalty);
+                player = player with { Score = reducedScore, Radius = 18 + MathF.Sqrt(reducedScore) * 0.7f };
+                _boundaryPenaltyReadyTick[player.Id] = _tick + 14;
+            }
             var shieldActive = _shieldUntilTick.TryGetValue(player.Id, out var shieldUntil) && _tick < shieldUntil;
             var magnetActive = _magnetUntilTick.TryGetValue(player.Id, out var magnetUntil) && _tick < magnetUntil;
             player = player with { ShieldActive = shieldActive, MagnetActive = magnetActive };

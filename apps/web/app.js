@@ -12,7 +12,7 @@ let activeFilter = 'all';
 let profile;
 let paymentOffers = [];
 
-function token() { return sessionStorage.getItem('swarm.accessToken'); }
+function token() { return window.SwarmRuntime.session.get('swarm.accessToken'); }
 function authHeaders(json = false) { return { ...(json ? { 'content-type': 'application/json' } : {}), ...(token() ? { authorization: `Bearer ${token()}` } : {}) }; }
 function deviceId() {
   let value = localStorage.getItem('swarm.deviceId');
@@ -32,8 +32,8 @@ async function createSession() {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ deviceId: deviceId(), nickname: nicknameInput.value })
   });
-  sessionStorage.setItem('swarm.accessToken', session.accessToken);
-  sessionStorage.setItem('swarm.playerId', session.player.id);
+  window.SwarmRuntime.session.set('swarm.accessToken', session.accessToken);
+  window.SwarmRuntime.session.set('swarm.playerId', session.player.id);
   profile = session.player;
   await loadInventory();
   updateProfile();
@@ -49,7 +49,7 @@ async function ensureSession() {
     updateProfile();
     return { player: profile, accessToken: token() };
   } catch {
-    sessionStorage.removeItem('swarm.accessToken');
+    window.SwarmRuntime.session.remove('swarm.accessToken');
     return createSession();
   }
 }
@@ -109,7 +109,7 @@ function renderPaymentOffers() {
     const nativeProduct = window.SwarmPurchases?.product(offer);
     const available = window.SwarmRuntime.native ? Boolean(nativeProduct) && !window.SwarmRuntime.offline : offer.webAvailable;
     const price = window.SwarmRuntime.native ? nativeProduct?.displayPrice : offer.webPriceLabel;
-    const unavailableLabel = window.SwarmRuntime.offline ? 'SUNUCU GEREKLİ' : 'YAKINDA';
+    const unavailableLabel = window.SwarmRuntime.native && window.SwarmRuntime.offline ? 'TEST SÜRÜMÜNDE KAPALI' : 'YAKINDA';
     return `<button class="gem-offer" type="button" data-offer="${offer.id}" ${available ? '' : 'disabled'}><b>◆ ${offer.gems.toLocaleString('tr-TR')}</b><small>${offer.bonusLabel || 'KRİSTAL'}</small><strong>${available ? price : unavailableLabel}</strong></button>`;
   }).join('');
 }
@@ -159,11 +159,17 @@ function openCosmetics(mode) {
   cosmeticsPanel.hidden = false;
   document.body.style.overflow = 'hidden';
   document.querySelector('#cosmetics-kicker').textContent = mode === 'store' ? 'MAĞAZA' : 'KOLEKSİYON';
+  window.SwarmMobileNav?.setActive(mode === 'store' ? 'store' : 'collection');
   activeFilter = mode === 'collection' ? 'owned' : 'all';
   document.querySelectorAll('.catalog-tabs button').forEach(button => button.classList.toggle('active', button.dataset.filter === activeFilter));
   renderCatalog();
 }
-function closeCosmetics() { cosmeticsPanel.hidden = true; document.body.style.overflow = ''; }
+function closeCosmetics() {
+  cosmeticsPanel.hidden = true;
+  document.body.style.overflow = '';
+  window.SwarmMobileNav?.setActive('play');
+  if (location.search) history.replaceState(null, '', location.pathname);
+}
 
 form.addEventListener('submit', async event => {
   event.preventDefault();
@@ -182,7 +188,8 @@ document.querySelector('#delete-account').addEventListener('click', async () => 
   try {
     const response = await window.SwarmRuntime.request('/api/v1/profile', { method: 'DELETE', headers: authHeaders() });
     if (!response.ok && response.status !== 204) throw new Error('Hesap silinemedi.');
-    sessionStorage.clear();
+    window.SwarmRuntime.session.remove('swarm.accessToken');
+    window.SwarmRuntime.session.remove('swarm.playerId');
     localStorage.removeItem('swarm.deviceId');
     profile = null; owned = new Set(['starter']); equipped = 'starter'; selected = 'starter';
     nicknameInput.value = 'Nova'; updateProfile(); renderCatalog();
@@ -228,6 +235,8 @@ async function start() {
     if (token()) { await ensureSession(); statusNode.textContent = 'Profil hazır. Arenaya girebilirsin.'; }
     else { updateProfile(); statusNode.textContent = 'Sunucu hazır. Arenaya girebilirsin.'; }
     if (window.SwarmRuntime.offline) statusNode.textContent = 'Çevrimdışı test modu hazır. Arenaya girebilirsin.';
+    const requestedView = new URLSearchParams(location.search).get('view');
+    if (requestedView === 'collection' || requestedView === 'store') openCosmetics(requestedView);
   } catch { statusNode.textContent = 'Sunucuya ulaşılamıyor.'; }
   requestAnimationFrame(drawPreviews);
 }

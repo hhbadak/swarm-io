@@ -5,8 +5,8 @@ const scoreNode = document.querySelector('#score');
 const leaderboardNode = document.querySelector('#leaderboard ol');
 const gameOverNode = document.querySelector('#game-over');
 const eventNode = document.querySelector('#event-banner');
-const playerId = sessionStorage.getItem('swarm.playerId');
-const accessToken = sessionStorage.getItem('swarm.accessToken');
+const playerId = window.SwarmRuntime.session.get('swarm.playerId');
+const accessToken = window.SwarmRuntime.session.get('swarm.accessToken');
 let snapshot = { players: [], energy: [], zones: [], arenaWidth: 3200, arenaHeight: 1800 };
 let socket;
 let input = { x: 0, y: 0 };
@@ -15,8 +15,17 @@ let lastOwnPlayer;
 let localMode = false;
 let localDashUntil = 0;
 let localArenaTimer;
+let boundaryPenaltyReadyAt = 0;
+let boundaryWarningUntil = 0;
 const trails = new Map();
 const visualRadii = new Map();
+const BASE_RADIUS = 22;
+
+function radiusForScore(score) { return BASE_RADIUS + Math.sqrt(Math.max(0, score)) * 1.22; }
+function insideZone(position, kind) {
+  const zone = snapshot.zones?.find(candidate => candidate.kind === kind);
+  return Boolean(zone && Math.hypot(position.x - zone.position.x, position.y - zone.position.y) <= zone.radius);
+}
 
 function resize() {
   canvas.width = Math.floor(innerWidth * devicePixelRatio);
@@ -64,7 +73,7 @@ function startLocalArena() {
   const state = window.SwarmOffline?.read?.() ?? { nickname: 'Nova', equippedSkin: 'starter' };
   const skins = ['starter', 'neon', 'hex', 'solar', 'void', 'gold'];
   const names = ['Orion', 'Vega', 'Lyra', 'Atlas', 'Luna', 'Pulsar', 'Astra', 'Comet'];
-  const own = { id: playerId, nickname: state.nickname, skinId: state.equippedSkin, position: { x: 1600, y: 900 }, radius: 22, score: 0, kills: 0, alive: true };
+  const own = { id: playerId, nickname: state.nickname, skinId: state.equippedSkin, position: { x: 1600, y: 900 }, radius: BASE_RADIUS, score: 0, kills: 0, alive: true };
   const bots = names.map((nickname, index) => ({
     id: `offline-bot-${index}`, nickname, skinId: skins[(index + 1) % skins.length],
     position: { x: 250 + Math.random() * 2700, y: 180 + Math.random() * 1440 },
@@ -97,10 +106,30 @@ function updateLocalArena(dt, now) {
   if (!own?.alive) return;
   const magnitude = Math.hypot(input.x, input.y) || 1;
   const moving = Math.hypot(input.x, input.y) > 0;
-  const speed = (now < localDashUntil ? 620 : 245) / Math.max(1, own.radius / 24);
+  let speed = (now < localDashUntil ? 620 : 245) / Math.max(1, own.radius / 24);
+  if (insideZone(own.position, 'speed')) speed *= 1.35;
+  let nextX = own.position.x;
+  let nextY = own.position.y;
   if (moving) {
-    own.position.x = Math.max(own.radius, Math.min(snapshot.arenaWidth - own.radius, own.position.x + input.x / magnitude * speed * dt));
-    own.position.y = Math.max(own.radius, Math.min(snapshot.arenaHeight - own.radius, own.position.y + input.y / magnitude * speed * dt));
+    nextX += input.x / magnitude * speed * dt;
+    nextY += input.y / magnitude * speed * dt;
+  }
+  const gravityZone = snapshot.zones.find(zone => zone.kind === 'gravity');
+  if (gravityZone && insideZone(own.position, 'gravity')) {
+    const dx = gravityZone.position.x - own.position.x, dy = gravityZone.position.y - own.position.y;
+    const pullLength = Math.hypot(dx, dy) || 1;
+    nextX += dx / pullLength * 72 * dt;
+    nextY += dy / pullLength * 72 * dt;
+  }
+  const hitBoundary = nextX <= own.radius || nextX >= snapshot.arenaWidth - own.radius || nextY <= own.radius || nextY >= snapshot.arenaHeight - own.radius;
+  own.position.x = Math.max(own.radius, Math.min(snapshot.arenaWidth - own.radius, nextX));
+  own.position.y = Math.max(own.radius, Math.min(snapshot.arenaHeight - own.radius, nextY));
+  if (hitBoundary && now >= boundaryPenaltyReadyAt) {
+    const penalty = Math.min(own.score, Math.max(4, Math.ceil(own.score * .04)));
+    own.score -= penalty;
+    own.radius = radiusForScore(own.score);
+    boundaryPenaltyReadyAt = now + 700;
+    boundaryWarningUntil = now + 900;
   }
   own.shieldActive = now < (own.shieldUntil || 0);
   own.magnetActive = now < (own.magnetUntil || 0);
@@ -116,9 +145,11 @@ function updateLocalArena(dt, now) {
   for (const player of snapshot.players.filter(candidate => candidate.alive)) {
     for (let index = snapshot.energy.length - 1; index >= 0; index--) {
       const orb = snapshot.energy[index];
-      if (Math.hypot(player.position.x - orb.position.x, player.position.y - orb.position.y) > player.radius + (orb.kind === 'core' ? 12 : 7)) continue;
-      const value = ({ common: 2, rare: 5, epic: 10, core: 24 })[orb.kind] || 2;
-      player.score += value; player.radius = 22 + Math.sqrt(player.score) * 1.22;
+      const reach = player.radius + (player.magnetActive ? 105 : orb.kind === 'core' ? 12 : 7);
+      if (Math.hypot(player.position.x - orb.position.x, player.position.y - orb.position.y) > reach) continue;
+      const baseValue = ({ common: 2, rare: 5, epic: 10, core: 24 })[orb.kind] || 2;
+      const value = insideZone(player.position, 'gold') ? baseValue * 2 : baseValue;
+      player.score += value; player.radius = radiusForScore(player.score);
       snapshot.energy[index] = offlineOrb(index);
     }
   }
@@ -127,8 +158,8 @@ function updateLocalArena(dt, now) {
   for (let left = 0; left < alive.length; left++) for (let right = left + 1; right < alive.length; right++) {
     const a = alive[left], b = alive[right], distance = Math.hypot(a.position.x - b.position.x, a.position.y - b.position.y);
     const larger = a.radius >= b.radius ? a : b, smaller = larger === a ? b : a;
-    if (distance > larger.radius || larger.radius < smaller.radius * 1.08 || smaller.shieldActive) continue;
-    smaller.alive = false; larger.kills += 1; larger.score += Math.max(20, Math.round(smaller.score * .7)); larger.radius = 22 + Math.sqrt(larger.score) * 1.22;
+    if (distance > larger.radius || larger.radius < smaller.radius * 1.025 || smaller.shieldActive) continue;
+    smaller.alive = false; larger.kills += 1; larger.score += Math.max(20, Math.round(smaller.score * .7)); larger.radius = radiusForScore(larger.score);
     if (smaller.id === playerId) {
       clearInterval(localArenaTimer);
       updateHud();
@@ -143,8 +174,40 @@ function pointInput(clientX, clientY) {
   input = { x: clientX - innerWidth / 2, y: clientY - innerHeight / 2 };
   sendInput();
 }
-addEventListener('pointermove', event => pointInput(event.clientX, event.clientY));
-addEventListener('pointerdown', event => pointInput(event.clientX, event.clientY));
+let arenaPointerId = null;
+canvas.addEventListener('pointerdown', event => {
+  if (event.pointerType === 'touch') return;
+  arenaPointerId = event.pointerId;
+  pointInput(event.clientX, event.clientY);
+});
+canvas.addEventListener('pointermove', event => {
+  if (event.pointerType === 'mouse' || event.pointerId === arenaPointerId) pointInput(event.clientX, event.clientY);
+});
+canvas.addEventListener('pointerup', event => { if (event.pointerId === arenaPointerId) arenaPointerId = null; });
+
+const stick = document.querySelector('.mobile-stick');
+let stickPointerId = null;
+function moveStick(event) {
+  const rect = stick.getBoundingClientRect();
+  const dx = event.clientX - (rect.left + rect.width / 2), dy = event.clientY - (rect.top + rect.height / 2);
+  const limit = rect.width * .32, length = Math.hypot(dx, dy) || 1, scale = Math.min(1, limit / length);
+  const x = dx * scale, y = dy * scale;
+  stick.style.setProperty('--stick-x', `${x}px`); stick.style.setProperty('--stick-y', `${y}px`);
+  input = { x: x / limit, y: y / limit };
+  sendInput();
+}
+function releaseStick(event) {
+  if (event.pointerId !== stickPointerId) return;
+  stickPointerId = null; input = { x: 0, y: 0 };
+  stick.style.setProperty('--stick-x', '0px'); stick.style.setProperty('--stick-y', '0px');
+  sendInput();
+}
+stick.addEventListener('pointerdown', event => {
+  event.preventDefault(); event.stopPropagation(); stickPointerId = event.pointerId; stick.setPointerCapture(event.pointerId); moveStick(event);
+});
+stick.addEventListener('pointermove', event => { if (event.pointerId === stickPointerId) { event.preventDefault(); moveStick(event); } });
+stick.addEventListener('pointerup', releaseStick);
+stick.addEventListener('pointercancel', releaseStick);
 const keys = new Set();
 const movementKeys = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright']);
 addEventListener('keydown', event => {
@@ -175,11 +238,12 @@ function updateHud() {
     lastOwnPlayer = own;
     scoreNode.textContent = own.score.toLocaleString('tr-TR');
     document.querySelector('#rank').textContent = `#${players.findIndex(player => player.id === own.id) + 1}`;
-    document.querySelector('#size').textContent = `${Math.max(1, own.radius / 18).toFixed(1)}×`;
+    document.querySelector('#size').textContent = `${Math.max(1, own.radius / BASE_RADIUS).toFixed(1)}×`;
     if (!own.alive && gameOverNode.hidden) showGameOver(players, own);
   }
-  eventNode.hidden = !snapshot.event;
-  eventNode.textContent = snapshot.event?.message ?? '';
+  const boundaryWarning = performance.now() < boundaryWarningUntil;
+  eventNode.hidden = !snapshot.event && !boundaryWarning;
+  eventNode.textContent = boundaryWarning ? 'SINIR TEMASI · ENERJİ VE BOYUT AZALIYOR' : snapshot.event?.message ?? '';
   leaderboardNode.innerHTML = players.slice(0, 5).map((player, index) => `<li class="${player.id.toLowerCase() === playerId.toLowerCase() ? 'you' : ''}"><b>${index + 1}</b><span>${escapeHtml(player.nickname)}</span><strong>${player.score}</strong></li>`).join('');
 }
 

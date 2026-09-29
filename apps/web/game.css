@@ -19,3 +19,18 @@
   .mobile-stick { position: fixed; z-index: 9; left: 22px; bottom: max(26px, env(safe-area-inset-bottom)); width: 92px; height: 92px; display: grid; place-items: center; border: 1px solid #59e4ed38; border-radius: 50%; background: #080d2455; }
   .mobile-stick::after { content: ""; width: 36px; height: 36px; border: 1px solid #59e4ed66; border-radius: 50%; background: #59e4ed18; }
 }
+
+.zone-guide{position:fixed;z-index:10;top:94px;left:18px;display:flex;flex-wrap:wrap;gap:5px;max-width:430px;padding:8px 10px;border:1px solid #29325e;border-radius:12px;background:#080d24c9;color:#aeb7d2;font-size:8px;letter-spacing:.05em;pointer-events:none}.zone-guide b{color:#59e4ed}.zone-guide span{padding-left:6px;border-left:1px solid #29325e}.mobile-stick span{display:block;width:36px;height:36px;border:1px solid #59e4ed88;border-radius:50%;background:#59e4ed24;box-shadow:0 0 18px #59e4ed22;transform:translate(var(--stick-x,0px),var(--stick-y,0px));transition:transform 50ms linear}
+
+@media (max-width: 680px) {
+  .game-page{padding:0;touch-action:none}
+  #arena{position:fixed;inset:0;width:100%;height:100%}
+  .hud{top:calc(var(--safe-top) + 8px);right:max(9px,var(--safe-right));left:max(9px,var(--safe-left));bottom:auto}
+  .leaderboard{top:calc(var(--safe-top) + 69px);right:max(9px,var(--safe-right))}
+  .event-banner{top:calc(var(--safe-top) + 70px)}
+  .zone-guide{top:calc(var(--safe-top) + 70px);left:max(9px,var(--safe-left));max-width:calc(100vw - 178px);display:grid;gap:2px;padding:7px 8px}.zone-guide span{padding:0;border:0}
+  .ability-bar{top:50%;right:max(10px,var(--safe-right));bottom:auto;display:flex;flex-direction:column;gap:7px;transform:translateY(-38%)}
+  .ability-bar button{width:58px;height:58px;min-width:58px;flex-basis:58px}
+  .mobile-stick{left:max(20px,var(--safe-left));bottom:calc(var(--mobile-nav-height) + var(--safe-bottom) + 22px);width:104px;height:104px;display:grid;touch-action:none;pointer-events:auto}
+  .mobile-stick::after{display:none}
+}

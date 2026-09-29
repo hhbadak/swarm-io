@@ -45,6 +45,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 }
 
 final class MainViewController: CAPBridgeViewController {
+    override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
+
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(SwarmStorePlugin())
     }

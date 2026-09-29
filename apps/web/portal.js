@@ -1,4 +1,4 @@
-const token = sessionStorage.getItem('swarm.accessToken');
+const token = window.SwarmRuntime.session.get('swarm.accessToken');
 const headers = () => ({ authorization: `Bearer ${token}` });
 const toastNode = document.querySelector('#portal-toast');
 
@@ -51,7 +51,7 @@ async function load() {
       api('/api/v1/meta/home', { headers: headers() }), api('/api/v1/leaderboards/global'), api('/api/v1/matches/history', { headers: headers() })
     ]);
     renderHome(home); renderBoard(board); renderHistory(history);
-  } catch { sessionStorage.removeItem('swarm.accessToken'); location.replace(window.SwarmRuntime.homeUrl); }
+  } catch { window.SwarmRuntime.session.remove('swarm.accessToken'); location.replace(window.SwarmRuntime.homeUrl); }
 }
 load();
 if (!window.SwarmRuntime.native && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});

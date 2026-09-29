@@ -31,7 +31,12 @@
     },
     page,
     homeUrl: native ? page('./index.html') : '/',
-    gameUrl: native ? page('./game.html') : '/game.html'
+    gameUrl: native ? page('./game.html') : '/game.html',
+    session: {
+      get(key) { return sessionStorage.getItem(key) || localStorage.getItem(key); },
+      set(key, value) { sessionStorage.setItem(key, value); localStorage.setItem(key, value); },
+      remove(key) { sessionStorage.removeItem(key); localStorage.removeItem(key); }
+    }
   };
   if (forcedOffline) window.SwarmRuntime.offline = true;
 

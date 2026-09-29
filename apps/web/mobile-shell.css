@@ -1,0 +1,73 @@
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --mobile-nav-height: 68px;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
+body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-bottom-nav { display: none; }
+
+@media (max-width: 760px) {
+  body:not(.game-page) { padding-bottom: calc(var(--mobile-nav-height) + var(--safe-bottom) + 12px); }
+  .native-shell .legal-shell { padding-top: calc(32px + var(--safe-top)); }
+
+  .mobile-bottom-nav {
+    position: fixed;
+    z-index: 100;
+    right: max(8px, var(--safe-right));
+    bottom: max(7px, var(--safe-bottom));
+    left: max(8px, var(--safe-left));
+    height: var(--mobile-nav-height);
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    padding: 5px;
+    border: 1px solid #29325e;
+    border-radius: 20px;
+    background: #080d24f2;
+    box-shadow: 0 12px 45px #000b, inset 0 1px #ffffff0a;
+    backdrop-filter: blur(18px);
+    overflow: hidden;
+  }
+
+  .mobile-bottom-nav a {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    place-content: center;
+    align-items: center;
+    gap: 3px;
+    padding: 0 4px;
+    border: 1px solid transparent;
+    border-radius: 15px;
+    color: #a8b1cf;
+    overflow: hidden;
+    font: 900 7px/1 Inter, system-ui, sans-serif;
+    letter-spacing: .04em;
+    text-align: center;
+    text-decoration: none;
+    white-space: nowrap;
+    touch-action: manipulation;
+  }
+
+  .mobile-bottom-nav a span { color: #b69cff; font-size: 12px; }
+  .mobile-bottom-nav a.active {
+    border-color: #59e4ed88;
+    background: #59e4ed12;
+    color: #fff;
+    box-shadow: inset 2px 0 #59e4ed, 0 0 20px #59e4ed14;
+  }
+  .mobile-bottom-nav a.active span { color: #59e4ed; }
+}

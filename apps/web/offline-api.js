@@ -23,7 +23,13 @@
     };
   }
   function read() {
-    try { return { ...initialState(), ...JSON.parse(localStorage.getItem(STATE_KEY) || 'null') }; }
+    try {
+      const state = { ...initialState(), ...(JSON.parse(localStorage.getItem(STATE_KEY) || 'null') || {}) };
+      state.owned = [...new Set(['starter', ...(Array.isArray(state.owned) ? state.owned : [])])];
+      if (!state.owned.includes(state.equippedSkin)) state.equippedSkin = 'starter';
+      write(state);
+      return state;
+    }
     catch { return initialState(); }
   }
   function write(state) { localStorage.setItem(STATE_KEY, JSON.stringify(state)); return state; }
