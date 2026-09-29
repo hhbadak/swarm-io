@@ -43,9 +43,18 @@ workflows:
       - name: Increment App Store build number
         script: |
           cd "$CM_BUILD_DIR/apps/mobile/ios/App"
-          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo 0)
-          NEXT_BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || true)
+          case "$LATEST_BUILD_NUMBER" in
+            ''|*[!0-9]*) LATEST_BUILD_NUMBER=0 ;;
+          esac
+
+          NEXT_BUILD_NUMBER="${BUILD_NUMBER:-1}"
+          if [ "$NEXT_BUILD_NUMBER" -le "$LATEST_BUILD_NUMBER" ]; then
+            NEXT_BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
+          fi
+
           agvtool new-version -all "$NEXT_BUILD_NUMBER"
+          echo "Using unique App Store build number: $NEXT_BUILD_NUMBER"
 
       - name: Build signed IPA
         script: |
