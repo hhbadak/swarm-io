@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#050819">
+  <title>İlerleme — SWARM.IO</title>
+  <script src="./bootstrap.js"></script>
+  <script src="/runtime.js"></script>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/portal.css">
+</head>
+<body>
+  <div class="portal-bg"></div>
+  <header class="portal-head"><a class="portal-brand" href="/">SWARM<span>.IO</span></a><nav><a href="/">ANA MENÜ</a><a class="active" href="/portal.html">İLERLEME</a><a href="/game.html">OYNA</a></nav><div class="portal-wallet"><b id="portal-coins">—</b> ● <b id="portal-gems">—</b> ◆</div></header>
+  <main class="portal-shell">
+    <section class="hero-card">
+      <div><small>AVCI PROFİLİ</small><h1 id="portal-name">Yükleniyor…</h1><p id="portal-stats">Seviye —</p></div>
+      <div class="level-orbit"><strong id="portal-level">1</strong><span>SEVİYE</span></div>
+      <button id="daily-claim" type="button">GÜNLÜK ÖDÜLÜ AL <span>→</span></button>
+    </section>
+    <section class="portal-grid">
+      <article class="panel missions"><header><div><small>BUGÜN</small><h2>Görevler</h2></div><span id="mission-count">0/4</span></header><div id="mission-list"></div></article>
+      <article class="panel season"><header><div><small>SEZON 01</small><h2 id="season-name">Cosmic Rise</h2></div><span id="season-level">LV 1</span></header><div class="season-track"><i id="season-progress"></i></div><p id="season-copy">0 / 500 XP</p><div class="season-rewards"><span>● 250</span><span>◆ 10</span><span>✦ Kapsül</span></div></article>
+      <article class="panel leaderboard-panel"><header><div><small>DÜNYA</small><h2>Liderlik</h2></div><span>TOP 10</span></header><ol id="global-board"></ol></article>
+      <article class="panel history"><header><div><small>SON KOŞULAR</small><h2>Maç Geçmişi</h2></div><span>SON 25</span></header><div id="match-history"></div></article>
+    </section>
+  </main>
+  <div id="portal-toast" role="status"></div>
+  <script src="/portal.js" defer></script>
+</body>
+</html>

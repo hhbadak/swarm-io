@@ -1,0 +1,12 @@
+{
+  "appId": "io.swarm.game",
+  "appName": "SWARM.IO",
+  "webDir": "../web",
+  "backgroundColor": "#030611",
+  "ios": {
+    "contentInset": "automatic",
+    "preferredContentMode": "mobile",
+    "allowsLinkPreview": false,
+    "scrollEnabled": false
+  }
+}

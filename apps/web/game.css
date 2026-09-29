@@ -1,0 +1,21 @@
+.result-stats { grid-template-columns: repeat(3, 1fr); }
+.result-stats .reward b { color: #f5c96c; }
+
+@media (max-width: 520px) {
+  .result-stats { grid-template-columns: 1fr 1fr; }
+  .result-stats .reward { grid-column: 1 / -1; }
+}
+
+.mobile-stick { display: none; }
+.event-banner{position:fixed;z-index:12;top:94px;left:50%;transform:translateX(-50%);padding:9px 18px;border:1px solid #f5c96c88;border-radius:999px;background:#201323e8;color:#ffe09b;font-size:11px;font-weight:950;letter-spacing:.1em;box-shadow:0 0 30px #f5c96c30;animation:event-pulse 1.2s ease-in-out infinite alternate}.ability-bar{display:flex;gap:9px}.ability-bar button{width:76px;height:76px;min-width:76px;padding:0 4px;overflow:hidden;flex:0 0 76px}.ability-bar button b{font-size:11px;line-height:1.05;letter-spacing:.02em;white-space:nowrap}.ability-bar button span{margin-top:5px;line-height:1;letter-spacing:.08em}.ability-bar button:first-child{border-color:#73c5ff}.ability-bar button:nth-child(2){border-color:#c49cff}.ability-bar button:disabled{filter:saturate(.3);opacity:.55}.hud-score span b{color:#fff}.zone-legend{display:none}@keyframes event-pulse{to{box-shadow:0 0 45px #f5c96c66}}
+
+@media (max-width: 680px) {
+  .hud { inset: max(9px, env(safe-area-inset-top)) 9px auto; min-height: 48px; padding: 8px 11px; }
+  .leaderboard { top: 70px; right: 9px; width: 150px; padding: 10px; opacity: .9; }
+  .leaderboard li:nth-child(n+4) { display: none; }
+  .ability-bar { right: 10px; bottom: max(14px, env(safe-area-inset-bottom)); gap:5px; }
+  .ability-bar button { width: 64px; height: 64px; min-width:64px; flex-basis:64px; padding:0 3px }
+  .ability-bar button b{font-size:9px;letter-spacing:0}.ability-bar button span{font-size:7px;margin-top:4px}.event-banner{top:70px;max-width:72vw;text-align:center;font-size:8px}.instructions{display:none}
+  .mobile-stick { position: fixed; z-index: 9; left: 22px; bottom: max(26px, env(safe-area-inset-bottom)); width: 92px; height: 92px; display: grid; place-items: center; border: 1px solid #59e4ed38; border-radius: 50%; background: #080d2455; }
+  .mobile-stick::after { content: ""; width: 36px; height: 36px; border: 1px solid #59e4ed66; border-radius: 50%; background: #59e4ed18; }
+}

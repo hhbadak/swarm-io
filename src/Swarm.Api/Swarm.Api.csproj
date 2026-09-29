@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\Swarm.Application\Swarm.Application.csproj" />
+    <ProjectReference Include="..\Swarm.Infrastructure\Swarm.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\apps\web\**\*" Link="web\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

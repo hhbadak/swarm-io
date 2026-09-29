@@ -1,0 +1,67 @@
+workflows:
+  ios-app-store:
+    name: SWARM.IO - iOS App Store
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+
+    integrations:
+      app_store_connect: swarm-io-app-store
+
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: io.swarm.game
+      vars:
+        APP_STORE_APPLE_ID: "6817025711"
+        XCODE_PROJECT: "apps/mobile/ios/App/App.xcodeproj"
+        XCODE_SCHEME: "App"
+      node: 22
+      xcode: latest
+
+    cache:
+      cache_paths:
+        - "$HOME/Library/Caches/org.swift.swiftpm"
+        - "$CM_BUILD_DIR/SourcePackages"
+        - "$CM_BUILD_DIR/apps/mobile/node_modules"
+
+    scripts:
+      - name: Install mobile dependencies
+        script: |
+          cd "$CM_BUILD_DIR/apps/mobile"
+          npm ci
+
+      - name: Sync web assets and iOS project
+        script: |
+          cd "$CM_BUILD_DIR/apps/mobile"
+          npx cap sync ios
+
+      - name: Set up App Store code signing
+        script: |
+          xcode-project use-profiles \
+            --project "$CM_BUILD_DIR/$XCODE_PROJECT"
+
+      - name: Increment App Store build number
+        script: |
+          cd "$CM_BUILD_DIR/apps/mobile/ios/App"
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo 0)
+          NEXT_BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
+          agvtool new-version -all "$NEXT_BUILD_NUMBER"
+
+      - name: Build signed IPA
+        script: |
+          xcode-project build-ipa \
+            --project "$CM_BUILD_DIR/$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME" \
+            --archive-flags "-clonedSourcePackagesDirPath $CM_BUILD_DIR/SourcePackages -destination 'generic/platform=iOS'"
+
+    artifacts:
+      - apps/mobile/ios/App/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - "$HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app"
+      - "$HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM"
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false

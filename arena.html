@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arena — SWARM.IO</title>
+
+  <!-- Tailwind CSS (pinned — matches the renderer/screenshot surfaces) -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        colors: {
+          background: 'rgb(8 13 30 / <alpha-value>)',
+          foreground: 'rgb(243 246 255 / <alpha-value>)',
+          primary: { DEFAULT: 'rgb(67 132 255 / <alpha-value>)', foreground: 'rgb(7 17 38 / <alpha-value>)' },
+          secondary: { DEFAULT: 'rgb(166 137 241 / <alpha-value>)', foreground: 'rgb(8 13 30 / <alpha-value>)' },
+          accent: { DEFAULT: 'rgb(53 216 226 / <alpha-value>)', foreground: 'rgb(7 17 38 / <alpha-value>)' },
+          muted: { DEFAULT: 'rgb(34 44 73 / <alpha-value>)', foreground: 'rgb(191 203 228 / <alpha-value>)' },
+          card: { DEFAULT: 'rgb(21 28 53 / <alpha-value>)', foreground: 'rgb(243 246 255 / <alpha-value>)' },
+          border: 'rgb(101 119 151 / <alpha-value>)',
+          input: 'rgb(34 44 73 / <alpha-value>)',
+          destructive: { DEFAULT: 'rgb(255 113 143 / <alpha-value>)', foreground: 'rgb(8 13 30 / <alpha-value>)' },
+          success: { DEFAULT: 'rgb(156 226 121 / <alpha-value>)', foreground: 'rgb(8 13 30 / <alpha-value>)' },
+          chart1: 'rgb(67 132 255 / <alpha-value>)',
+          chart2: 'rgb(53 216 226 / <alpha-value>)',
+          chart3: 'rgb(177 139 248 / <alpha-value>)',
+          chart4: 'rgb(245 130 206 / <alpha-value>)',
+          chart5: 'rgb(241 198 104 / <alpha-value>)',
+          ring: 'rgb(67 132 255 / <alpha-value>)',
+        },
+        fontFamily: {
+          heading: ['var(--font-heading, Inter)', 'system-ui'],
+          body: ['var(--font-body, Inter)', 'system-ui'],
+        },
+        borderRadius: { DEFAULT: 'var(--radius, 12px)', theme: 'var(--radius, 12px)' },
+      }}
+    };
+</script>
+
+  <!-- Iconify Web Component -->
+  <script src="https://code.iconify.design/iconify-icon/2.3.0/iconify-icon.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oxanium:wght@100;200;300;400;500;600;700;800;900&family=Manrope:wght@100;200;300;400;500;600;700;800;900&display=swap">
+
+  <!-- Design Tokens + Custom Classes -->
+  <style>
+  :root {
+    --color-background: #080D1E;
+    --color-foreground: #F3F6FF;
+    --color-primary: #4384FF;
+    --color-primary-foreground: #071126;
+    --color-secondary: #A689F1;
+    --color-secondary-foreground: #080D1E;
+    --color-accent: #35D8E2;
+    --color-accent-foreground: #071126;
+    --color-muted: #222C49;
+    --color-muted-foreground: #BFCBE4;
+    --color-card: #151C35;
+    --color-card-foreground: #F3F6FF;
+    --color-border: #657797;
+    --color-input: #222C49;
+    --color-destructive: #FF718F;
+    --color-destructive-foreground: #080D1E;
+    --color-success: #9CE279;
+    --color-success-foreground: #080D1E;
+    --color-chart1: #4384FF;
+    --color-chart2: #35D8E2;
+    --color-chart3: #B18BF8;
+    --color-chart4: #F582CE;
+    --color-chart5: #F1C668;
+    --font-heading: 'Oxanium', sans-serif;
+    --font-body: 'Manrope', sans-serif;
+    --radius: 16px;
+  }
+
+  body {
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+    padding: 0;
+  }
+  </style>
+</head>
+<body class="bg-background text-foreground m-0 p-0">
+  <div class="h-screen w-screen overflow-hidden">
+    <div class="relative min-h-screen h-screen w-full overflow-hidden bg-background font-body text-foreground">
+      <div class="absolute inset-0 h-full w-full overflow-hidden">
+        <img data-image-id="26a5534f-2a03-49bc-89c1-ae2ceda0767b" data-image-intent="A premium top-down cosmic arcade battle arena in deep midnight navy and violet space, hundreds of clearly separated tiny energy pickups in four distinct visual types: simple cyan dots, blue rare diamonds, violet epic stars, and sparse radiant gold orbs; several cute but competitive serpent creatures with unmistakable bright heads and controlled short neon trails weaving between pickups; sharply differentiated readable regions of calm dark space, cool water, glowing orange lava, a mutation field, a subtle gravity vortex, a golden central core, and a dangerous magenta boundary; crisp combat silhouettes, restrained particles, clear separation between creatures, energy, hazards and zone edges, dynamic but uncluttered game art, no text, no interface" data-image-type="illustration" data-image-aspect="9:16" data-image-background="opaque" alt="Kozmik yılan arenasında enerji toplayan rakipler" class="h-full w-full object-cover" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/26a5534f-2a03-49bc-89c1-ae2ceda0767b.png" />
+      </div>
+      <div class="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(8,13,30,0.94)_0%,rgba(8,13,30,0.58)_19%,rgba(8,13,30,0.04)_43%,rgba(8,13,30,0.14)_65%,rgba(8,13,30,0.96)_100%)]"></div>
+      <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_48%_43%,transparent_0%,rgba(8,13,30,0.12)_58%,rgba(8,13,30,0.55)_100%)]"></div>
+
+      <header class="absolute inset-x-5 top-12 z-20">
+        <div class="flex h-9 items-center gap-2">
+          <button aria-label="Geri dön" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-card/90 text-card-foreground backdrop-blur-md">
+            <iconify-icon icon="lucide:arrow-left" class="text-xl"></iconify-icon>
+          </button>
+          <div class="min-w-0 flex-1">
+            <p class="font-heading text-[13px] font-black tracking-[0.12em]">HERKES TEK</p>
+            <p class="text-[9px] font-bold tracking-[0.14em] text-muted-foreground">CANLI ARENA</p>
+          </div>
+          <div class="flex items-center gap-1.5 rounded-full border border-white/10 bg-card/85 px-2.5 py-1.5 text-[10px] font-bold text-card-foreground backdrop-blur-md">
+            <span class="h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_8px_#9CE279]"></span>
+            02:14
+          </div>
+        </div>
+
+        <div class="relative mt-2 flex items-start gap-2">
+          <div class="grid w-[204px] shrink-0 grid-cols-3 gap-1.5">
+            <div class="rounded-xl border border-white/10 bg-card/90 px-2 py-2 text-card-foreground backdrop-blur-md">
+              <p class="text-[8px] font-extrabold tracking-widest text-muted-foreground">PUAN</p>
+              <p class="mt-0.5 font-heading text-[18px] font-black leading-none">3.100</p>
+            </div>
+            <div class="rounded-xl border border-primary/60 bg-card/95 px-2 py-2 text-card-foreground shadow-[0_0_16px_rgba(67,132,255,0.2)] backdrop-blur-md">
+              <p class="text-[8px] font-extrabold tracking-widest text-muted-foreground">SIRA</p>
+              <p class="mt-0.5 font-heading text-[18px] font-black leading-none text-primary">#4<span class="text-[10px] text-muted-foreground">/24</span></p>
+            </div>
+            <div class="rounded-xl border border-white/10 bg-card/90 px-2 py-2 text-card-foreground backdrop-blur-md">
+              <p class="text-[8px] font-extrabold tracking-widest text-muted-foreground">BOYUT</p>
+              <p class="mt-0.5 font-heading text-[18px] font-black leading-none">72</p>
+            </div>
+          </div>
+
+          <section aria-label="Liderlik tablosu" class="min-w-0 flex-1 rounded-xl border border-white/10 bg-card/90 px-2.5 py-2 text-card-foreground backdrop-blur-md">
+            <div class="mb-1 flex items-center justify-between">
+              <p class="font-heading text-[9px] font-black tracking-[0.12em]">LİDERLER</p>
+              <iconify-icon icon="lucide:bar-chart-3" class="text-xs text-accent"></iconify-icon>
+            </div>
+            <div class="space-y-1 text-[9px] font-bold leading-none">
+              <div class="flex items-center justify-between"><span class="text-[#F1C668]">1. Zed</span><span class="text-muted-foreground">4.820</span></div>
+              <div class="flex items-center justify-between"><span class="text-card-foreground">2. Mira</span><span class="text-muted-foreground">4.260</span></div>
+              <div class="flex items-center justify-between"><span class="text-card-foreground">3. Kıvılcım</span><span class="text-muted-foreground">3.640</span></div>
+              <div class="flex items-center justify-between rounded-md bg-primary/20 px-1 py-0.5"><span class="text-primary-foreground">4. Nova</span><span>3.100</span></div>
+            </div>
+          </section>
+        </div>
+      </header>
+
+      <main class="absolute inset-0 z-10">
+        <section aria-label="Arena etkinliği" class="absolute left-1/2 top-[22%] flex w-[calc(100%-40px)] max-w-[350px] -translate-x-1/2 items-center gap-2.5 rounded-theme border border-[#F1C668]/45 bg-card/95 px-3 py-2.5 text-card-foreground shadow-[0_8px_28px_rgba(0,0,0,0.32)] backdrop-blur-md">
+          <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F1C668]/15 text-[#F1C668]">
+            <iconify-icon icon="lucide:orbit" class="text-xl"></iconify-icon>
+          </span>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-1.5">
+              <p class="font-heading text-[11px] font-black tracking-[0.1em] text-[#F1C668]">ALTIN ÇEKİRDEK</p>
+              <span class="rounded-full bg-[#F1C668]/15 px-1.5 py-0.5 text-[8px] font-extrabold text-[#F1C668]">ETKİN</span>
+            </div>
+            <p class="mt-0.5 text-[10px] font-semibold text-muted-foreground">Merkezde kapış, altın enerjiyi kap!</p>
+          </div>
+          <iconify-icon icon="lucide:chevron-right" class="text-base text-[#F1C668]"></iconify-icon>
+        </section>
+
+        <section aria-label="Arena bölgeleri" class="absolute left-1/2 top-[29%] flex w-[calc(100%-40px)] max-w-[350px] -translate-x-1/2 flex-wrap items-center justify-center gap-1.5">
+          <span class="rounded-full border border-white/20 bg-card/85 px-2 py-1 text-[8px] font-extrabold text-card-foreground backdrop-blur-sm">NORMAL</span>
+          <span class="rounded-full border border-accent/40 bg-card/85 px-2 py-1 text-[8px] font-extrabold text-accent backdrop-blur-sm">SU</span>
+          <span class="rounded-full border border-[#F5825B]/50 bg-card/85 px-2 py-1 text-[8px] font-extrabold text-[#FF9A64] backdrop-blur-sm">LAV</span>
+          <span class="rounded-full border border-success/40 bg-card/85 px-2 py-1 text-[8px] font-extrabold text-success backdrop-blur-sm">MUTASYON</span>
+          <span class="rounded-full border border-secondary/50 bg-card/85 px-2 py-1 text-[8px] font-extrabold text-secondary backdrop-blur-sm">YERÇEKİMİ</span>
+          <span class="rounded-full border border-[#F1C668]/50 bg-card/85 px-2 py-1 text-[8px] font-extrabold text-[#F1C668] backdrop-blur-sm">ALTIN</span>
+          <span class="rounded-full border border-destructive/50 bg-card/85 px-2 py-1 text-[8px] font-extrabold text-destructive backdrop-blur-sm">TEHLİKE</span>
+        </section>
+
+        <div class="pointer-events-none absolute left-[37%] top-[43%] z-10 h-32 w-32 rounded-full border border-accent/25 shadow-[0_0_30px_rgba(53,216,226,0.15)]"></div>
+        <img data-image-id="d2eb07ca-a051-4339-8528-ab91bf632f8a" data-image-intent="A single compact electric-cyan arcade serpent, top-down three-quarter view, unmistakable angular glowing head, bright mischievous eyes, short curved armored body, poised in a fast turning movement, premium stylized game character, crisp silhouette" data-image-type="illustration" data-image-aspect="1:1" data-image-background="transparent" alt="Nova, yılan karakteri" class="pointer-events-none absolute left-[38%] top-[42%] z-10 h-28 w-28 object-contain drop-shadow-[0_0_18px_rgba(53,216,226,0.65)]" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/d2eb07ca-a051-4339-8528-ab91bf632f8a.png" />
+        <div class="absolute left-[42%] top-[56%] z-10 rounded-full border border-accent/30 bg-card/90 px-2 py-1 text-[8px] font-extrabold tracking-wider text-accent backdrop-blur-sm">NOVA · SEN</div>
+
+        <div class="absolute bottom-[203px] left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-card/90 px-3 py-2 text-[8px] font-extrabold text-card-foreground shadow-lg backdrop-blur-md">
+          <span class="tracking-widest text-muted-foreground">ENERJİ</span>
+          <span class="flex items-center gap-1"><i class="h-2 w-2 rounded-full bg-accent"></i>Normal</span>
+          <span class="flex items-center gap-1"><i class="h-2 w-2 rotate-45 rounded-[2px] bg-primary"></i>Nadir</span>
+          <span class="flex items-center gap-1"><i class="h-2 w-2 rounded-sm bg-secondary"></i>Epik</span>
+          <span class="flex items-center gap-1"><i class="h-2 w-2 rotate-45 rounded-[2px] bg-[#F1C668] shadow-[0_0_7px_#F1C668]"></i>Altın</span>
+        </div>
+
+        <div class="absolute bottom-[160px] left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-card/85 px-3 py-1.5 text-[9px] font-bold text-muted-foreground backdrop-blur-md">
+          Sürükle: yön ver <span class="mx-1 text-accent">·</span> Yeteneğe dokun: kullan
+        </div>
+
+        <div class="absolute inset-x-5 bottom-6 z-30 flex items-end justify-between">
+          <div class="relative flex h-[124px] w-[124px] shrink-0 items-center justify-center rounded-full border border-white/20 bg-card/65 shadow-[inset_0_0_24px_rgba(53,216,226,0.08),0_8px_28px_rgba(0,0,0,0.28)] backdrop-blur-sm">
+            <span class="absolute top-3 font-heading text-[8px] font-black tracking-[0.18em] text-muted-foreground">SÜRÜKLE</span>
+            <span class="absolute left-1/2 top-1/2 h-[48px] w-[48px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-accent/65 bg-accent/20 shadow-[0_0_20px_rgba(53,216,226,0.24)]"></span>
+            <span class="absolute left-[44%] top-[39%] h-2 w-2 rounded-full bg-accent shadow-[0_0_10px_#35D8E2]"></span>
+            <span class="absolute bottom-3 font-heading text-[8px] font-bold tracking-[0.16em] text-muted-foreground">HAREKET</span>
+          </div>
+
+          <div class="flex items-end gap-1.5">
+            <div class="flex flex-col items-center gap-1">
+              <button aria-label="Atıl yeteneği hazır" class="relative flex h-[64px] w-[64px] flex-col items-center justify-center rounded-full border-2 border-primary bg-primary/25 text-primary-foreground shadow-[0_0_18px_rgba(67,132,255,0.35)]">
+                <iconify-icon icon="lucide:move-up-right" class="text-2xl text-accent"></iconify-icon>
+                <span class="mt-0.5 font-heading text-[8px] font-black tracking-wider">HAZIR</span>
+              </button>
+              <span class="font-heading text-[9px] font-black tracking-wide">ATIL</span>
+            </div>
+            <div class="flex flex-col items-center gap-1">
+              <button aria-label="Kalkan 3,2 saniye beklemede" class="relative flex h-[64px] w-[64px] flex-col items-center justify-center rounded-full border border-white/20 bg-card/95 text-card-foreground shadow-lg backdrop-blur-md">
+                <svg class="pointer-events-none absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 64 64" aria-hidden="true">
+                  <circle cx="32" cy="32" r="28" fill="none" stroke="var(--color-muted)" stroke-width="2"></circle>
+                  <circle cx="32" cy="32" r="28" fill="none" stroke="var(--color-chart2)" stroke-width="2.5" stroke-dasharray="176" stroke-dashoffset="54" stroke-linecap="round"></circle>
+                </svg>
+                <iconify-icon icon="lucide:shield" class="text-xl text-accent"></iconify-icon>
+                <span class="mt-0.5 font-heading text-[8px] font-black">3,2 sn</span>
+              </button>
+              <span class="font-heading text-[9px] font-black tracking-wide">KALKAN</span>
+            </div>
+            <div class="flex flex-col items-center gap-1">
+              <button aria-label="Mıknatıs 6 saniye beklemede" class="relative flex h-[64px] w-[64px] flex-col items-center justify-center rounded-full border border-white/20 bg-card/95 text-card-foreground shadow-lg backdrop-blur-md">
+                <svg class="pointer-events-none absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 64 64" aria-hidden="true">
+                  <circle cx="32" cy="32" r="28" fill="none" stroke="var(--color-muted)" stroke-width="2"></circle>
+                  <circle cx="32" cy="32" r="28" fill="none" stroke="var(--color-chart3)" stroke-width="2.5" stroke-dasharray="176" stroke-dashoffset="105" stroke-linecap="round"></circle>
+                </svg>
+                <iconify-icon icon="lucide:magnet" class="text-xl text-secondary"></iconify-icon>
+                <span class="mt-0.5 font-heading text-[8px] font-black">6 sn</span>
+              </button>
+              <span class="font-heading text-[9px] font-black tracking-wide">MIKNATIS</span>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script>
+    // Icon self-healing: a missing icon name renders as INVISIBLE empty space
+    // (iconify-icon fails silently). Its `status` property ('rendered' |
+    // 'loading' | 'failed') lets us swap failures to a neutral glyph.
+    (function() {
+      var els = document.querySelectorAll('iconify-icon');
+      for (var i = 0; i < els.length; i++) (function(el) {
+        var tries = 0;
+        (function check() {
+          var s = el.status;
+          if (s === 'failed') el.setAttribute('icon', 'lucide:circle');
+          else if (s !== 'rendered' && tries++ < 40) setTimeout(check, 250);
+        })();
+      })(els[i]);
+    })();
+  </script>
+</body>
+</html>

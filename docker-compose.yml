@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-swarm}
+      POSTGRES_USER: ${POSTGRES_USER:-swarm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-swarm-local-only}
+    ports:
+      - "5432:5432"
+    volumes:
+      - swarm-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-swarm} -d ${POSTGRES_DB:-swarm}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - swarm-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  game-server:
+    build:
+      context: .
+      dockerfile: src/Swarm.GameServer/Dockerfile
+    environment:
+      SWARM_TOKEN_SECRET: ${SWARM_TOKEN_SECRET:-local-development-secret-change-me-149}
+    ports:
+      - "5090:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+  api:
+    build:
+      context: .
+      dockerfile: src/Swarm.Api/Dockerfile
+    environment:
+      SWARM_DB_PROVIDER: Postgres
+      SWARM_TOKEN_SECRET: ${SWARM_TOKEN_SECRET:-local-development-secret-change-me-149}
+      SWARM_GAME_WS_URL: ${SWARM_GAME_WS_URL:-ws://localhost:5090/ws/arena}
+      SWARM_REDIS_HOST: redis
+      SWARM_ADMIN_KEY: ${SWARM_ADMIN_KEY:-swarm-local-admin}
+      ConnectionStrings__Swarm: Host=postgres;Port=5432;Database=${POSTGRES_DB:-swarm};Username=${POSTGRES_USER:-swarm};Password=${POSTGRES_PASSWORD:-swarm-local-only}
+      SWARM_AUTO_CREATE_DATABASE: "true"
+    ports:
+      - "5080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      game-server:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+volumes:
+  swarm-postgres:
+  swarm-redis:

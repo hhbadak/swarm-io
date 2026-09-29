@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>İlerleme — SWARM.IO</title>
+
+  <!-- Tailwind CSS (pinned — matches the renderer/screenshot surfaces) -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        colors: {
+          background: 'rgb(8 13 30 / <alpha-value>)',
+          foreground: 'rgb(243 246 255 / <alpha-value>)',
+          primary: { DEFAULT: 'rgb(67 132 255 / <alpha-value>)', foreground: 'rgb(7 17 38 / <alpha-value>)' },
+          secondary: { DEFAULT: 'rgb(166 137 241 / <alpha-value>)', foreground: 'rgb(8 13 30 / <alpha-value>)' },
+          accent: { DEFAULT: 'rgb(53 216 226 / <alpha-value>)', foreground: 'rgb(7 17 38 / <alpha-value>)' },
+          muted: { DEFAULT: 'rgb(34 44 73 / <alpha-value>)', foreground: 'rgb(191 203 228 / <alpha-value>)' },
+          card: { DEFAULT: 'rgb(21 28 53 / <alpha-value>)', foreground: 'rgb(243 246 255 / <alpha-value>)' },
+          border: 'rgb(101 119 151 / <alpha-value>)',
+          input: 'rgb(34 44 73 / <alpha-value>)',
+          destructive: { DEFAULT: 'rgb(255 113 143 / <alpha-value>)', foreground: 'rgb(8 13 30 / <alpha-value>)' },
+          success: { DEFAULT: 'rgb(156 226 121 / <alpha-value>)', foreground: 'rgb(8 13 30 / <alpha-value>)' },
+          chart1: 'rgb(67 132 255 / <alpha-value>)',
+          chart2: 'rgb(53 216 226 / <alpha-value>)',
+          chart3: 'rgb(177 139 248 / <alpha-value>)',
+          chart4: 'rgb(245 130 206 / <alpha-value>)',
+          chart5: 'rgb(241 198 104 / <alpha-value>)',
+          ring: 'rgb(67 132 255 / <alpha-value>)',
+        },
+        fontFamily: {
+          heading: ['var(--font-heading, Inter)', 'system-ui'],
+          body: ['var(--font-body, Inter)', 'system-ui'],
+        },
+        borderRadius: { DEFAULT: 'var(--radius, 12px)', theme: 'var(--radius, 12px)' },
+      }}
+    };
+</script>
+
+  <!-- Iconify Web Component -->
+  <script src="https://code.iconify.design/iconify-icon/2.3.0/iconify-icon.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oxanium:wght@100;200;300;400;500;600;700;800;900&family=Manrope:wght@100;200;300;400;500;600;700;800;900&display=swap">
+
+  <!-- Design Tokens + Custom Classes -->
+  <style>
+  :root {
+    --color-background: #080D1E;
+    --color-foreground: #F3F6FF;
+    --color-primary: #4384FF;
+    --color-primary-foreground: #071126;
+    --color-secondary: #A689F1;
+    --color-secondary-foreground: #080D1E;
+    --color-accent: #35D8E2;
+    --color-accent-foreground: #071126;
+    --color-muted: #222C49;
+    --color-muted-foreground: #BFCBE4;
+    --color-card: #151C35;
+    --color-card-foreground: #F3F6FF;
+    --color-border: #657797;
+    --color-input: #222C49;
+    --color-destructive: #FF718F;
+    --color-destructive-foreground: #080D1E;
+    --color-success: #9CE279;
+    --color-success-foreground: #080D1E;
+    --color-chart1: #4384FF;
+    --color-chart2: #35D8E2;
+    --color-chart3: #B18BF8;
+    --color-chart4: #F582CE;
+    --color-chart5: #F1C668;
+    --font-heading: 'Oxanium', sans-serif;
+    --font-body: 'Manrope', sans-serif;
+    --radius: 16px;
+  }
+
+  body {
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+    padding: 0;
+  }
+  </style>
+</head>
+<body class="bg-background text-foreground m-0 p-0">
+  <div class="h-screen w-screen overflow-hidden">
+    <div class="relative min-h-screen w-full overflow-hidden bg-background font-body text-foreground">
+      <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_75%_8%,#242454_0%,#111936_34%,#080d1e_72%)]"></div>
+      <div class="pointer-events-none absolute -right-24 top-48 h-64 w-64 rounded-full bg-secondary/10 blur-3xl"></div>
+      <div class="pointer-events-none absolute inset-x-0 top-20 h-72 opacity-50" style="background-image:radial-gradient(circle at 12% 22%,white 1px,transparent 2px),radial-gradient(circle at 81% 14%,#35D8E2 1px,transparent 2px),radial-gradient(circle at 72% 65%,white 1px,transparent 2px),radial-gradient(circle at 29% 78%,#A689F1 1px,transparent 2px),radial-gradient(circle at 91% 85%,white 1px,transparent 2px)"></div>
+
+      <main class="relative z-10 px-5 pb-32 pt-12">
+        <header class="flex items-center justify-between">
+          <div>
+            <p class="font-heading text-[10px] font-extrabold tracking-[0.2em] text-accent">SEZON 01 · NEON SINIRI</p>
+            <h1 class="mt-1 font-heading text-[28px] font-black leading-none">İlerleme</h1>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="flex h-9 items-center gap-1.5 rounded-theme border border-white/10 bg-card/90 px-2.5 text-card-foreground">
+              <iconify-icon icon="lucide:coins" class="text-base text-[#F1C668]"></iconify-icon>
+              <span class="font-heading text-xs font-bold">95</span>
+            </div>
+            <div class="flex h-9 items-center gap-1.5 rounded-theme border border-white/10 bg-card/90 px-2.5 text-card-foreground">
+              <iconify-icon icon="lucide:gem" class="text-base text-accent"></iconify-icon>
+              <span class="font-heading text-xs font-bold">0</span>
+            </div>
+          </div>
+        </header>
+
+        <nav class="mt-5 flex items-center gap-2 rounded-theme border border-white/10 bg-card/75 p-1" aria-label="İlerleme bölümleri">
+          <a href="#" class="flex-1 rounded-xl bg-primary px-3 py-2 text-center font-heading text-xs font-black text-primary-foreground">Özet</a>
+          <a href="#" class="flex-1 rounded-xl px-3 py-2 text-center font-heading text-xs font-bold text-muted-foreground">Görevler</a>
+          <a href="#" class="flex-1 rounded-xl px-3 py-2 text-center font-heading text-xs font-bold text-muted-foreground">Sezon</a>
+        </nav>
+
+        <section class="mt-3 rounded-theme border border-white/10 bg-card p-4 text-card-foreground shadow-lg shadow-black/20">
+          <div class="flex items-center gap-3">
+            <div class="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-primary/40 bg-primary/15">
+              <span class="font-heading text-2xl font-black text-primary">1</span>
+              <span class="absolute -bottom-1 rounded-full border border-card bg-primary px-1.5 py-0.5 font-heading text-[8px] font-black text-primary-foreground">SV</span>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between gap-2">
+                <h2 class="font-heading text-lg font-black">Nova</h2>
+                <span class="rounded-lg border border-accent/25 bg-accent/10 px-2 py-1 font-heading text-[9px] font-extrabold tracking-wide text-accent">YILDIZ AVCISI</span>
+              </div>
+              <div class="mt-1.5 flex items-center justify-between text-[10px] font-bold">
+                <span class="text-muted-foreground">Seviye 1</span>
+                <span>210 <span class="text-muted-foreground">/ 300 XP</span></span>
+              </div>
+              <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-muted">
+                <div class="h-full w-[70%] rounded-full bg-gradient-to-r from-primary to-accent"></div>
+              </div>
+            </div>
+          </div>
+          <p class="mt-3 flex items-center gap-1.5 border-t border-border/30 pt-3 text-[10px] font-semibold text-muted-foreground">
+            <iconify-icon icon="lucide:badge-check" class="text-sm text-secondary"></iconify-icon>
+            Kuşanılmış isim plakası <span class="font-extrabold text-card-foreground">Yıldız Avcısı</span>
+          </p>
+        </section>
+
+        <section class="mt-5">
+          <div class="mb-2 flex items-end justify-between">
+            <div>
+              <p class="font-heading text-[10px] font-extrabold tracking-[0.18em] text-accent">ARENA KARNESİ</p>
+              <h2 class="font-heading text-lg font-black">İstatistiklerin</h2>
+            </div>
+            <span class="text-[10px] font-semibold text-muted-foreground">İlk maçın</span>
+          </div>
+          <div class="grid grid-cols-4 gap-2">
+            <div class="rounded-theme border border-white/5 bg-card p-2.5 text-center">
+              <iconify-icon icon="lucide:gamepad-2" class="text-lg text-primary"></iconify-icon>
+              <p class="mt-1 font-heading text-xl font-black">1</p>
+              <p class="text-[9px] font-bold text-muted-foreground">Maç</p>
+            </div>
+            <div class="rounded-theme border border-white/5 bg-card p-2.5 text-center">
+              <iconify-icon icon="lucide:crosshair" class="text-lg text-destructive"></iconify-icon>
+              <p class="mt-1 font-heading text-xl font-black">4</p>
+              <p class="text-[9px] font-bold text-muted-foreground">Av</p>
+            </div>
+            <div class="rounded-theme border border-white/5 bg-card p-2.5 text-center">
+              <iconify-icon icon="lucide:medal" class="text-lg text-[#F1C668]"></iconify-icon>
+              <p class="mt-1 font-heading text-xl font-black">0</p>
+              <p class="text-[9px] font-bold text-muted-foreground">Zafer</p>
+            </div>
+            <div class="rounded-theme border border-white/5 bg-card p-2.5 text-center">
+              <iconify-icon icon="lucide:zap" class="text-lg text-accent"></iconify-icon>
+              <p class="mt-1 font-heading text-base font-black">6.340</p>
+              <p class="text-[9px] font-bold text-muted-foreground">En iyi skor</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="mt-5 rounded-theme border border-[#F1C668]/25 bg-card p-3.5 text-card-foreground">
+          <div class="flex items-center gap-3">
+            <div class="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#F1C668]/15 text-[#F1C668]">
+              <iconify-icon icon="lucide:gift" class="text-xl"></iconify-icon>
+              <span class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-card bg-[#F1C668]"></span>
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="font-heading text-[10px] font-black tracking-widest text-[#F1C668]">ÖDÜLÜN HAZIR</p>
+              <p class="mt-0.5 text-xs font-bold">İlk maçını tamamla</p>
+              <p class="mt-0.5 text-[10px] text-muted-foreground">+25 Altın · Başlangıç görevi</p>
+            </div>
+            <button class="flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-[#F1C668] px-3 font-heading text-[11px] font-black text-[#080D1E]">
+              AL <iconify-icon icon="lucide:arrow-right" class="text-sm"></iconify-icon>
+            </button>
+          </div>
+        </section>
+
+        <section class="mt-5">
+          <div class="mb-2 flex items-center justify-between">
+            <div>
+              <p class="font-heading text-[10px] font-extrabold tracking-[0.18em] text-secondary">SEZON SIRALAMASI</p>
+              <h2 class="font-heading text-lg font-black">Rakiplerin arasında</h2>
+            </div>
+            <span class="rounded-full bg-secondary/15 px-2.5 py-1 text-[9px] font-extrabold text-secondary">BU SEZON</span>
+          </div>
+          <div class="rounded-theme border border-white/5 bg-card p-3.5 text-card-foreground">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary/15 text-secondary"><iconify-icon icon="lucide:trophy" class="text-lg"></iconify-icon></span>
+                <div>
+                  <p class="text-xs font-extrabold">Küresel sıra</p>
+                  <p class="mt-0.5 text-[10px] text-muted-foreground">Sezon puanın · 6.340</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <p class="font-heading text-xl font-black">#8.421</p>
+                <p class="text-[9px] font-bold text-muted-foreground">OYUNCU</p>
+              </div>
+            </div>
+            <div class="mt-3 flex items-center justify-between border-t border-border/30 pt-2.5 text-[10px]">
+              <span class="flex items-center gap-1.5 font-semibold text-muted-foreground"><iconify-icon icon="lucide:users" class="text-sm"></iconify-icon> Arkadaşlar arasında</span>
+              <span class="font-heading font-extrabold text-accent">#1.204 <span class="font-body text-muted-foreground">/ 2.018</span></span>
+            </div>
+          </div>
+        </section>
+
+        <section class="mt-5">
+          <div class="mb-2 flex items-end justify-between">
+            <div>
+              <p class="font-heading text-[10px] font-extrabold tracking-[0.18em] text-accent">YENİ HEDEFLER</p>
+              <h2 class="font-heading text-lg font-black">Görevler</h2>
+            </div>
+            <a href="#" class="flex items-center gap-1 text-[10px] font-bold text-muted-foreground">Tümünü gör <iconify-icon icon="lucide:arrow-right" class="text-sm"></iconify-icon></a>
+          </div>
+
+          <div class="space-y-2">
+            <div class="rounded-theme border border-white/5 bg-card p-3.5 text-card-foreground">
+              <div class="flex items-start gap-3">
+                <span class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent"><iconify-icon icon="lucide:orbit" class="text-lg"></iconify-icon></span>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center justify-between">
+                    <p class="text-xs font-extrabold">Maçlarda 500 enerji topla</p>
+                    <iconify-icon icon="lucide:chevron-down" class="text-sm text-muted-foreground"></iconify-icon>
+                  </div>
+                  <div class="mt-2 flex items-center justify-between text-[10px] font-bold">
+                    <span class="text-muted-foreground">Günlük görev</span>
+                    <span>310 <span class="text-muted-foreground">/ 500</span></span>
+                  </div>
+                  <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted"><div class="h-full w-[62%] rounded-full bg-accent"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-theme border border-white/5 bg-card p-3.5 text-card-foreground">
+              <div class="flex items-start gap-3">
+                <span class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive"><iconify-icon icon="lucide:target" class="text-lg"></iconify-icon></span>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center justify-between">
+                    <p class="text-xs font-extrabold">Bu hafta 10 rakibi avla</p>
+                    <iconify-icon icon="lucide:chevron-down" class="text-sm text-muted-foreground"></iconify-icon>
+                  </div>
+                  <div class="mt-2 flex items-center justify-between text-[10px] font-bold">
+                    <span class="text-muted-foreground">Haftalık görev</span>
+                    <span>4 <span class="text-muted-foreground">/ 10</span></span>
+                  </div>
+                  <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted"><div class="h-full w-[40%] rounded-full bg-destructive"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="mt-5 rounded-theme border border-secondary/20 bg-card p-3.5 text-card-foreground">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="font-heading text-[10px] font-extrabold tracking-[0.18em] text-secondary">İLK MİHİ</p>
+              <h2 class="mt-0.5 font-heading text-base font-black">Başarımlar</h2>
+            </div>
+            <a href="#" class="text-[10px] font-bold text-muted-foreground">1 / 24 <iconify-icon icon="lucide:chevron-right" class="align-middle text-sm"></iconify-icon></a>
+          </div>
+          <div class="mt-2 flex items-center gap-3 rounded-xl bg-muted/50 p-2">
+            <img data-image-id="0dfd0c9b-e0eb-4022-9f14-5c05ad324bf7" data-image-intent="A single premium arcade achievement medallion, a playful electric-cyan neon serpent curling protectively around a tiny defeated magenta rival emblem, bright mischievous eyes, crisp sculpted enamel and subtle plasma glow, bold readable silhouette" data-image-type="illustration" data-image-aspect="1:1" data-image-background="transparent" alt="İlk Av başarım rozeti" class="h-16 w-16 shrink-0 object-contain drop-shadow-[0_5px_14px_rgba(53,216,226,0.3)]" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/0dfd0c9b-e0eb-4022-9f14-5c05ad324bf7.png" />
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5">
+                <p class="font-heading text-sm font-black">İlk Av</p>
+                <span class="rounded-md bg-success/15 px-1.5 py-0.5 text-[8px] font-extrabold text-success">KAZANILDI</span>
+              </div>
+              <p class="mt-1 text-[10px] leading-snug text-muted-foreground">İlk rakibini alt et. Av başlasın!</p>
+            </div>
+            <iconify-icon icon="lucide:check-circle-2" class="shrink-0 text-xl text-success"></iconify-icon>
+          </div>
+        </section>
+
+        <section class="mt-5 mb-3 rounded-theme border border-primary/20 bg-card p-3.5 text-card-foreground">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="font-heading text-[10px] font-extrabold tracking-[0.18em] text-primary">SEZON 01</p>
+              <h2 class="mt-0.5 font-heading text-base font-black">Kozmetik ödül yolu</h2>
+            </div>
+            <span class="rounded-full bg-primary/15 px-2.5 py-1 text-[9px] font-extrabold text-primary">210 XP</span>
+          </div>
+          <div class="relative mt-4 flex items-start justify-between">
+            <div class="absolute left-4 right-4 top-4 h-1 rounded-full bg-muted"><div class="h-full w-[35%] rounded-full bg-primary"></div></div>
+            <div class="relative flex w-1/3 flex-col items-center text-center">
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl border-2 border-primary bg-primary/15 text-primary"><iconify-icon icon="lucide:check" class="text-sm"></iconify-icon></span>
+              <p class="mt-1.5 text-[9px] font-extrabold">İsim plakası</p>
+              <p class="text-[8px] text-muted-foreground">100 XP · Alındı</p>
+            </div>
+            <div class="relative flex w-1/3 flex-col items-center text-center">
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl border border-secondary/50 bg-card text-secondary"><iconify-icon icon="lucide:sparkles" class="text-base"></iconify-icon></span>
+              <p class="mt-1.5 text-[9px] font-extrabold">İz efekti</p>
+              <p class="text-[8px] text-muted-foreground">300 XP · 90 XP kaldı</p>
+            </div>
+            <div class="relative flex w-1/3 flex-col items-center text-center">
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl border border-border/40 bg-muted text-muted-foreground"><iconify-icon icon="lucide:palette" class="text-base"></iconify-icon></span>
+              <p class="mt-1.5 text-[9px] font-extrabold">Serpent görünümü</p>
+              <p class="text-[8px] text-muted-foreground">600 XP</p>
+            </div>
+          </div>
+          <p class="mt-3 flex items-center gap-1.5 border-t border-border/30 pt-2.5 text-[9px] font-semibold text-muted-foreground">
+            <iconify-icon icon="lucide:refresh-cw" class="text-xs"></iconify-icon>
+            Günlük ödül alındı · Yeni ödül 08:42 sonra
+          </p>
+        </section>
+      </main>
+
+      <div class="pointer-events-none fixed inset-x-0 bottom-0 z-20 h-28 bg-gradient-to-t from-background via-background/95 to-transparent"></div>
+      <nav data-fv-tabbar class="fixed inset-x-5 bottom-4 z-30 flex h-[66px] items-center justify-around rounded-[22px] border border-white/10 bg-card/95 px-1.5 shadow-xl shadow-black/40 backdrop-blur-xl">
+        <a data-fv-tab="Ana Menü" href="#" class="flex h-[54px] w-[82px] flex-col items-center justify-center gap-0.5 text-muted-foreground"><iconify-icon icon="lucide:house" class="text-xl"></iconify-icon><span class="text-[10px] font-bold">Ana Menü</span></a>
+        <a data-fv-tab="Karakterler" href="#" class="flex h-[54px] w-[82px] flex-col items-center justify-center gap-0.5 text-muted-foreground"><iconify-icon icon="lucide:users" class="text-xl"></iconify-icon><span class="text-[10px] font-bold">Karakterler</span></a>
+        <a data-fv-tab="Mağaza" href="#" class="flex h-[54px] w-[82px] flex-col items-center justify-center gap-0.5 text-muted-foreground"><iconify-icon icon="lucide:store" class="text-xl"></iconify-icon><span class="text-[10px] font-bold">Mağaza</span></a>
+        <a data-fv-tab="İlerleme" data-fv-tab-active="true" href="#" class="flex h-[54px] w-[82px] flex-col items-center justify-center gap-0.5 rounded-[17px] bg-primary text-primary-foreground"><iconify-icon icon="lucide:trophy" class="text-xl"></iconify-icon><span class="text-[10px] font-extrabold">İlerleme</span></a>
+      </nav>
+    </div>
+  </div>
+  <script>
+    // Icon self-healing: a missing icon name renders as INVISIBLE empty space
+    // (iconify-icon fails silently). Its `status` property ('rendered' |
+    // 'loading' | 'failed') lets us swap failures to a neutral glyph.
+    (function() {
+      var els = document.querySelectorAll('iconify-icon');
+      for (var i = 0; i < els.length; i++) (function(el) {
+        var tries = 0;
+        (function check() {
+          var s = el.status;
+          if (s === 'failed') el.setAttribute('icon', 'lucide:circle');
+          else if (s !== 'rendered' && tries++ < 40) setTimeout(check, 250);
+        })();
+      })(els[i]);
+    })();
+  </script>
+</body>
+</html>

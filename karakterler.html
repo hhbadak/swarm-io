@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Karakterler — SWARM.IO</title>
+
+  <!-- Tailwind CSS (pinned — matches the renderer/screenshot surfaces) -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        colors: {
+          background: 'rgb(8 13 30 / <alpha-value>)',
+          foreground: 'rgb(243 246 255 / <alpha-value>)',
+          primary: { DEFAULT: 'rgb(67 132 255 / <alpha-value>)', foreground: 'rgb(7 17 38 / <alpha-value>)' },
+          secondary: { DEFAULT: 'rgb(166 137 241 / <alpha-value>)', foreground: 'rgb(8 13 30 / <alpha-value>)' },
+          accent: { DEFAULT: 'rgb(53 216 226 / <alpha-value>)', foreground: 'rgb(7 17 38 / <alpha-value>)' },
+          muted: { DEFAULT: 'rgb(34 44 73 / <alpha-value>)', foreground: 'rgb(191 203 228 / <alpha-value>)' },
+          card: { DEFAULT: 'rgb(21 28 53 / <alpha-value>)', foreground: 'rgb(243 246 255 / <alpha-value>)' },
+          border: 'rgb(101 119 151 / <alpha-value>)',
+          input: 'rgb(34 44 73 / <alpha-value>)',
+          destructive: { DEFAULT: 'rgb(255 113 143 / <alpha-value>)', foreground: 'rgb(8 13 30 / <alpha-value>)' },
+          success: { DEFAULT: 'rgb(156 226 121 / <alpha-value>)', foreground: 'rgb(8 13 30 / <alpha-value>)' },
+          chart1: 'rgb(67 132 255 / <alpha-value>)',
+          chart2: 'rgb(53 216 226 / <alpha-value>)',
+          chart3: 'rgb(177 139 248 / <alpha-value>)',
+          chart4: 'rgb(245 130 206 / <alpha-value>)',
+          chart5: 'rgb(241 198 104 / <alpha-value>)',
+          ring: 'rgb(67 132 255 / <alpha-value>)',
+        },
+        fontFamily: {
+          heading: ['var(--font-heading, Inter)', 'system-ui'],
+          body: ['var(--font-body, Inter)', 'system-ui'],
+        },
+        borderRadius: { DEFAULT: 'var(--radius, 12px)', theme: 'var(--radius, 12px)' },
+      }}
+    };
+</script>
+
+  <!-- Iconify Web Component -->
+  <script src="https://code.iconify.design/iconify-icon/2.3.0/iconify-icon.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oxanium:wght@100;200;300;400;500;600;700;800;900&family=Manrope:wght@100;200;300;400;500;600;700;800;900&display=swap">
+
+  <!-- Design Tokens + Custom Classes -->
+  <style>
+  :root {
+    --color-background: #080D1E;
+    --color-foreground: #F3F6FF;
+    --color-primary: #4384FF;
+    --color-primary-foreground: #071126;
+    --color-secondary: #A689F1;
+    --color-secondary-foreground: #080D1E;
+    --color-accent: #35D8E2;
+    --color-accent-foreground: #071126;
+    --color-muted: #222C49;
+    --color-muted-foreground: #BFCBE4;
+    --color-card: #151C35;
+    --color-card-foreground: #F3F6FF;
+    --color-border: #657797;
+    --color-input: #222C49;
+    --color-destructive: #FF718F;
+    --color-destructive-foreground: #080D1E;
+    --color-success: #9CE279;
+    --color-success-foreground: #080D1E;
+    --color-chart1: #4384FF;
+    --color-chart2: #35D8E2;
+    --color-chart3: #B18BF8;
+    --color-chart4: #F582CE;
+    --color-chart5: #F1C668;
+    --font-heading: 'Oxanium', sans-serif;
+    --font-body: 'Manrope', sans-serif;
+    --radius: 16px;
+  }
+
+  body {
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+    padding: 0;
+  }
+  </style>
+</head>
+<body class="bg-background text-foreground m-0 p-0">
+  <div class="h-screen w-screen overflow-hidden">
+    <div class="relative min-h-screen w-full overflow-x-hidden bg-background font-body text-foreground">
+      <div class="pointer-events-none absolute inset-x-0 top-0 h-[440px] bg-[radial-gradient(ellipse_at_50%_20%,#29245f_0%,#111936_42%,transparent_78%)]"></div>
+      <div class="pointer-events-none absolute right-[-100px] top-40 h-64 w-64 rounded-full bg-accent/10 blur-3xl"></div>
+
+      <main class="relative z-10 px-5 pb-56 pt-12">
+        <header class="mb-4 flex items-end justify-between">
+          <div>
+            <p class="font-heading text-[10px] font-extrabold tracking-[0.2em] text-accent">SAVAŞA HAZIRLAN</p>
+            <h1 class="mt-1 font-heading text-[27px] font-black leading-none tracking-tight">Karakterler</h1>
+          </div>
+          <div class="flex items-center gap-1.5 rounded-full border border-white/10 bg-card/80 px-3 py-2 text-card-foreground">
+            <iconify-icon icon="lucide:users" class="text-base text-accent"></iconify-icon>
+            <span class="font-heading text-xs font-extrabold">5 yaratık</span>
+          </div>
+        </header>
+
+        <section class="relative h-[190px] overflow-hidden rounded-theme border border-primary/50 bg-card shadow-[0_0_26px_rgba(67,132,255,0.15)]">
+          <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_72%_55%,rgba(53,216,226,0.25),transparent_55%),linear-gradient(115deg,rgba(67,132,255,0.18),transparent_56%)]"></div>
+          <div class="pointer-events-none absolute right-8 top-8 h-32 w-32 rounded-full border border-accent/20"></div>
+          <div class="pointer-events-none absolute right-12 top-12 h-24 w-24 rounded-full border border-accent/10"></div>
+          <div class="absolute left-4 top-4 z-10">
+            <span class="inline-flex items-center gap-1 rounded-full border border-accent/25 bg-background/75 px-2.5 py-1 text-[9px] font-extrabold tracking-wider text-accent">
+              <iconify-icon icon="lucide:zap" class="text-xs"></iconify-icon> SUİKASTÇI
+            </span>
+            <h2 class="mt-2 font-heading text-[23px] font-black leading-none">Neon Yılan</h2>
+            <p class="mt-2 max-w-[170px] text-[11px] leading-snug text-muted-foreground">Küçükken çok hızlıdır; kalabalığın içinde kolayca sıkışır.</p>
+          </div>
+          <img data-image-id="7accd5bc-798c-4cee-b9e2-b80e5ebf1ab8" data-image-intent="A single cute-aggressive electric cyan arcade serpent curled into a sharp dynamic S shape, angular readable head, bright mischievous eyes, compact luminous armor scales, premium stylized 3D game character portrait" data-image-type="illustration" data-image-aspect="1:1" data-image-background="transparent" alt="Neon Yılan karakteri" class="absolute -bottom-3 right-0 z-10 h-[190px] w-[190px] object-contain drop-shadow-[0_10px_22px_rgba(53,216,226,0.4)]" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/7accd5bc-798c-4cee-b9e2-b80e5ebf1ab8.png" />
+          <div class="absolute bottom-3 left-4 z-20 flex items-center gap-1.5 rounded-full border border-accent/20 bg-background/80 px-2.5 py-1 text-[9px] font-bold text-card-foreground backdrop-blur">
+            <iconify-icon icon="lucide:sparkles" class="text-xs text-accent"></iconify-icon>
+            Işık izi · Kuşanıldı
+          </div>
+        </section>
+
+        <section class="mt-4">
+          <div class="mb-2 flex items-center justify-between">
+            <h2 class="font-heading text-sm font-black">Yaratığını seç</h2>
+            <span class="text-[10px] font-bold text-muted-foreground">Karakterin görünüşü savaşı etkilemez</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <button class="relative flex h-[94px] flex-col items-center justify-center overflow-hidden rounded-theme border-2 border-primary bg-primary/15 text-foreground shadow-[0_0_14px_rgba(67,132,255,0.16)]">
+              <span class="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground"><iconify-icon icon="lucide:check" class="text-[10px]"></iconify-icon></span>
+              <img data-image-id="b6faf6da-56d8-491a-b3b2-d773fb0dea26" data-image-intent="A single cute-aggressive electric cyan arcade serpent with a sharp angular head, bright mischievous eyes, compact luminous scales, dynamic coiled silhouette" data-image-type="illustration" data-image-aspect="1:1" data-image-background="transparent" alt="Neon Yılan" class="h-[57px] w-[62px] object-contain drop-shadow-lg" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/b6faf6da-56d8-491a-b3b2-d773fb0dea26.png" />
+              <span class="font-heading text-[10px] font-extrabold">Neon Yılan</span>
+            </button>
+            <button class="flex h-[94px] flex-col items-center justify-center rounded-theme border border-border/40 bg-card text-card-foreground">
+              <img data-image-id="d7159932-9f61-4e14-b16a-91620b2f6934" data-image-intent="A single cute-aggressive violet plasma dragon arcade creature, broad armored body, swept-back horns, glowing bright eyes and powerful compact wings, distinct tank silhouette" data-image-type="illustration" data-image-aspect="1:1" data-image-background="transparent" alt="Plazma Ejderi" class="h-[57px] w-[62px] object-contain drop-shadow-lg" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/d7159932-9f61-4e14-b16a-91620b2f6934.png" />
+              <span class="font-heading text-[10px] font-extrabold">Plazma Ejderi</span>
+            </button>
+            <button class="flex h-[94px] flex-col items-center justify-center rounded-theme border border-border/40 bg-card text-card-foreground">
+              <img data-image-id="a67074b4-412f-411d-95f9-118dc200f306" data-image-intent="A single cute-aggressive toxic lime-green swarm creature made of a compact cluster of tiny round alien bugs, many glowing eyes, little antennae and a lively many-part silhouette" data-image-type="illustration" data-image-aspect="1:1" data-image-background="transparent" alt="Toksik Sürü" class="h-[57px] w-[62px] object-contain drop-shadow-lg" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/a67074b4-412f-411d-95f9-118dc200f306.png" />
+              <span class="font-heading text-[10px] font-extrabold">Toksik Sürü</span>
+            </button>
+            <button class="flex h-[94px] flex-col items-center justify-center rounded-theme border border-border/40 bg-card text-card-foreground">
+              <img data-image-id="ba252efc-e1f5-4a91-8423-31a5e8c96a6f" data-image-intent="A single cute-aggressive deep violet void hunter arcade creature, sleek feline-like head, bright magenta eyes, long crescent tail and sharp swept-back energy fins, distinct predator silhouette" data-image-type="illustration" data-image-aspect="1:1" data-image-background="transparent" alt="Hiçlik Avcısı" class="h-[57px] w-[62px] object-contain drop-shadow-lg" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/ba252efc-e1f5-4a91-8423-31a5e8c96a6f.png" />
+              <span class="font-heading text-[10px] font-extrabold">Hiçlik Avcısı</span>
+            </button>
+            <button class="flex h-[94px] flex-col items-center justify-center rounded-theme border border-border/40 bg-card text-card-foreground">
+              <img data-image-id="6ab74a9b-a0f8-4583-86dc-3c1221336fc4" data-image-intent="A single cute-aggressive icy blue arcade beast with a squat fluffy body, crystalline horns, broad paws, bright playful eyes and frosty pale cyan fur, distinct collector silhouette" data-image-type="illustration" data-image-aspect="1:1" data-image-background="transparent" alt="Buz Canavarı" class="h-[57px] w-[62px] object-contain drop-shadow-lg" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/6ab74a9b-a0f8-4583-86dc-3c1221336fc4.png" />
+              <span class="font-heading text-[10px] font-extrabold">Buz Canavarı</span>
+            </button>
+            <a href="#" class="flex h-[94px] flex-col items-center justify-center gap-2 rounded-theme border border-dashed border-border/50 bg-card/60 text-muted-foreground">
+              <iconify-icon icon="lucide:plus" class="text-xl"></iconify-icon>
+              <span class="text-[9px] font-extrabold">Yeni yaratıklar</span>
+            </a>
+          </div>
+        </section>
+
+        <section class="mt-4 rounded-theme border border-white/8 bg-card p-3 text-card-foreground">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="font-heading text-[10px] font-extrabold tracking-[0.16em] text-muted-foreground">HAREKET & BÜYÜME</p>
+              <p class="mt-1 text-[11px] leading-snug">Hızlı manevra yapıp enerji topla. Büyüdükçe güçlenirsin ama daha kolay hedef olursun.</p>
+            </div>
+            <div class="ml-3 flex shrink-0 flex-col gap-1.5">
+              <span class="flex items-center gap-1 text-[9px] font-extrabold text-accent"><iconify-icon icon="lucide:move" class="text-xs"></iconify-icon> ÇEVİK</span>
+              <span class="flex items-center gap-1 text-[9px] font-extrabold text-destructive"><iconify-icon icon="lucide:target" class="text-xs"></iconify-icon> KIRILGAN</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="mt-4">
+          <div class="mb-2 flex items-center justify-between">
+            <h2 class="font-heading text-sm font-black">Yetenek dizilimi</h2>
+            <span class="text-[9px] font-bold text-muted-foreground">Ücretsiz · Her maçta kullanılabilir</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <button class="rounded-theme border border-primary/50 bg-primary/10 p-2.5 text-left text-card-foreground">
+              <div class="flex items-center justify-between">
+                <iconify-icon icon="lucide:move-right" class="text-lg text-accent"></iconify-icon>
+                <span class="rounded-md bg-muted px-1.5 py-0.5 text-[8px] font-extrabold text-muted-foreground">6 sn</span>
+              </div>
+              <p class="mt-1 font-heading text-[11px] font-black">DASH</p>
+              <p class="mt-0.5 text-[9px] leading-tight text-muted-foreground">İleri atıl, tuzaktan sıyrıl.</p>
+            </button>
+            <button class="rounded-theme border border-white/10 bg-card p-2.5 text-left text-card-foreground">
+              <div class="flex items-center justify-between">
+                <iconify-icon icon="lucide:shield" class="text-lg text-secondary"></iconify-icon>
+                <span class="rounded-md bg-muted px-1.5 py-0.5 text-[8px] font-extrabold text-muted-foreground">12 sn</span>
+              </div>
+              <p class="mt-1 font-heading text-[11px] font-black">KALKAN</p>
+              <p class="mt-0.5 text-[9px] leading-tight text-muted-foreground">Kısa süre çarpışmadan korun.</p>
+            </button>
+            <button class="rounded-theme border border-white/10 bg-card p-2.5 text-left text-card-foreground">
+              <div class="flex items-center justify-between">
+                <iconify-icon icon="lucide:magnet" class="text-lg text-[#F1C668]"></iconify-icon>
+                <span class="rounded-md bg-muted px-1.5 py-0.5 text-[8px] font-extrabold text-muted-foreground">10 sn</span>
+              </div>
+              <p class="mt-1 font-heading text-[11px] font-black">MIKNATIS</p>
+              <p class="mt-0.5 text-[9px] leading-tight text-muted-foreground">Enerji kürelerini kendine çek.</p>
+            </button>
+          </div>
+          <div class="mt-2 rounded-theme border border-primary/30 bg-card p-3">
+            <div class="flex items-center justify-between">
+              <p class="font-heading text-[10px] font-extrabold tracking-wider text-accent">DASH YERİNE SEÇ</p>
+              <span class="text-[9px] font-bold text-muted-foreground">Dokunup değiştir</span>
+            </div>
+            <div class="mt-2 grid grid-cols-3 gap-2">
+              <button class="rounded-xl border border-white/10 bg-muted/60 px-2 py-2 text-left">
+                <span class="block font-heading text-[10px] font-black">EMP</span>
+                <span class="mt-0.5 block text-[9px] text-muted-foreground">5 sn · Yakındakileri yavaşlat</span>
+              </button>
+              <button class="rounded-xl border border-white/10 bg-muted/60 px-2 py-2 text-left">
+                <span class="block font-heading text-[10px] font-black">BÖLÜN</span>
+                <span class="mt-0.5 block text-[9px] text-muted-foreground">8 sn · İkiz iz bırak</span>
+              </button>
+              <button class="rounded-xl border border-white/10 bg-muted/60 px-2 py-2 text-left">
+                <span class="block font-heading text-[10px] font-black">ZEHİR</span>
+                <span class="mt-0.5 block text-[9px] text-muted-foreground">10 sn · Alanı kapla</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="mt-4 rounded-theme border border-white/8 bg-card p-3 text-card-foreground">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-accent/10 text-accent"><iconify-icon icon="lucide:sparkles" class="text-lg"></iconify-icon></span>
+              <div>
+                <p class="font-heading text-[10px] font-black">Görünüşler</p>
+                <p class="text-[9px] text-muted-foreground">Yalnızca kozmetik · Güç vermez</p>
+              </div>
+            </div>
+            <a href="#" class="flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1.5 text-[9px] font-extrabold text-accent">Mağazaya git <iconify-icon icon="lucide:arrow-up-right" class="text-xs"></iconify-icon></a>
+          </div>
+          <div class="mt-2 flex gap-2">
+            <span class="flex flex-1 items-center gap-1.5 rounded-xl bg-muted/70 px-2 py-1.5 text-[9px] font-bold"><iconify-icon icon="lucide:check-circle-2" class="text-sm text-success"></iconify-icon> Işık izi · Kazanıldı</span>
+            <span class="flex flex-1 items-center gap-1.5 rounded-xl bg-muted/70 px-2 py-1.5 text-[9px] font-bold text-muted-foreground"><iconify-icon icon="lucide:lock-keyhole" class="text-sm text-[#F1C668]"></iconify-icon> Yıldız kabuğu</span>
+          </div>
+        </section>
+      </main>
+
+      <div class="pointer-events-none fixed inset-x-0 bottom-0 z-20 h-48 bg-gradient-to-t from-background via-background/95 to-transparent"></div>
+      <div class="fixed inset-x-5 bottom-[100px] z-30">
+        <button class="flex h-14 w-full items-center justify-between rounded-theme bg-primary px-5 text-primary-foreground shadow-[0_8px_32px_rgba(67,132,255,0.45)]">
+          <span class="flex flex-col items-start leading-tight">
+            <span class="font-heading text-[9px] font-bold opacity-75">NEON YILAN · 3 YETENEK HAZIR</span>
+            <span class="font-heading text-[20px] font-black italic tracking-wide">BU YARATIĞI SEÇ</span>
+          </span>
+          <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20"><iconify-icon icon="lucide:check" class="text-xl"></iconify-icon></span>
+        </button>
+      </div>
+      <nav data-fv-tabbar class="fixed inset-x-5 bottom-4 z-30 flex h-[66px] items-center justify-around rounded-[22px] border border-white/10 bg-card/95 px-1.5 shadow-xl shadow-black/40 backdrop-blur-xl">
+        <a data-fv-tab="Ana Menü" href="#" class="flex h-[54px] w-[82px] flex-col items-center justify-center gap-0.5 text-muted-foreground"><iconify-icon icon="lucide:house" class="text-xl"></iconify-icon><span class="text-[10px] font-bold">Ana Menü</span></a>
+        <a data-fv-tab="Karakterler" data-fv-tab-active="true" href="#" class="flex h-[54px] w-[82px] flex-col items-center justify-center gap-0.5 rounded-[17px] bg-primary text-primary-foreground"><iconify-icon icon="lucide:users" class="text-xl"></iconify-icon><span class="text-[10px] font-extrabold">Karakterler</span></a>
+        <a data-fv-tab="Mağaza" href="#" class="flex h-[54px] w-[82px] flex-col items-center justify-center gap-0.5 text-muted-foreground"><iconify-icon icon="lucide:store" class="text-xl"></iconify-icon><span class="text-[10px] font-bold">Mağaza</span></a>
+        <a data-fv-tab="İlerleme" href="#" class="flex h-[54px] w-[82px] flex-col items-center justify-center gap-0.5 text-muted-foreground"><iconify-icon icon="lucide:trophy" class="text-xl"></iconify-icon><span class="text-[10px] font-bold">İlerleme</span></a>
+      </nav>
+    </div>
+  </div>
+  <script>
+    // Icon self-healing: a missing icon name renders as INVISIBLE empty space
+    // (iconify-icon fails silently). Its `status` property ('rendered' |
+    // 'loading' | 'failed') lets us swap failures to a neutral glyph.
+    (function() {
+      var els = document.querySelectorAll('iconify-icon');
+      for (var i = 0; i < els.length; i++) (function(el) {
+        var tries = 0;
+        (function check() {
+          var s = el.status;
+          if (s === 'failed') el.setAttribute('icon', 'lucide:circle');
+          else if (s !== 'rendered' && tries++ < 40) setTimeout(check, 250);
+        })();
+      })(els[i]);
+    })();
+  </script>
+</body>
+</html>

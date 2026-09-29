@@ -1,0 +1,11 @@
+{
+  "name": "SWARM.IO",
+  "short_name": "SWARM",
+  "description": "Küçük başla, büyü ve arenayı yönet.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#030611",
+  "theme_color": "#050819",
+  "orientation": "any",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

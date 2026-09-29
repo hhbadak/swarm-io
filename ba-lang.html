@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Başlangıç — SWARM.IO</title>
+
+  <!-- Tailwind CSS (pinned — matches the renderer/screenshot surfaces) -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        colors: {
+          background: 'rgb(8 13 30 / <alpha-value>)',
+          foreground: 'rgb(243 246 255 / <alpha-value>)',
+          primary: { DEFAULT: 'rgb(67 132 255 / <alpha-value>)', foreground: 'rgb(7 17 38 / <alpha-value>)' },
+          secondary: { DEFAULT: 'rgb(166 137 241 / <alpha-value>)', foreground: 'rgb(8 13 30 / <alpha-value>)' },
+          accent: { DEFAULT: 'rgb(53 216 226 / <alpha-value>)', foreground: 'rgb(7 17 38 / <alpha-value>)' },
+          muted: { DEFAULT: 'rgb(34 44 73 / <alpha-value>)', foreground: 'rgb(191 203 228 / <alpha-value>)' },
+          card: { DEFAULT: 'rgb(21 28 53 / <alpha-value>)', foreground: 'rgb(243 246 255 / <alpha-value>)' },
+          border: 'rgb(101 119 151 / <alpha-value>)',
+          input: 'rgb(34 44 73 / <alpha-value>)',
+          destructive: { DEFAULT: 'rgb(255 113 143 / <alpha-value>)', foreground: 'rgb(8 13 30 / <alpha-value>)' },
+          success: { DEFAULT: 'rgb(156 226 121 / <alpha-value>)', foreground: 'rgb(8 13 30 / <alpha-value>)' },
+          chart1: 'rgb(67 132 255 / <alpha-value>)',
+          chart2: 'rgb(53 216 226 / <alpha-value>)',
+          chart3: 'rgb(177 139 248 / <alpha-value>)',
+          chart4: 'rgb(245 130 206 / <alpha-value>)',
+          chart5: 'rgb(241 198 104 / <alpha-value>)',
+          ring: 'rgb(67 132 255 / <alpha-value>)',
+        },
+        fontFamily: {
+          heading: ['var(--font-heading, Inter)', 'system-ui'],
+          body: ['var(--font-body, Inter)', 'system-ui'],
+        },
+        borderRadius: { DEFAULT: 'var(--radius, 12px)', theme: 'var(--radius, 12px)' },
+      }}
+    };
+</script>
+
+  <!-- Iconify Web Component -->
+  <script src="https://code.iconify.design/iconify-icon/2.3.0/iconify-icon.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oxanium:wght@100;200;300;400;500;600;700;800;900&family=Manrope:wght@100;200;300;400;500;600;700;800;900&display=swap">
+
+  <!-- Design Tokens + Custom Classes -->
+  <style>
+  :root {
+    --color-background: #080D1E;
+    --color-foreground: #F3F6FF;
+    --color-primary: #4384FF;
+    --color-primary-foreground: #071126;
+    --color-secondary: #A689F1;
+    --color-secondary-foreground: #080D1E;
+    --color-accent: #35D8E2;
+    --color-accent-foreground: #071126;
+    --color-muted: #222C49;
+    --color-muted-foreground: #BFCBE4;
+    --color-card: #151C35;
+    --color-card-foreground: #F3F6FF;
+    --color-border: #657797;
+    --color-input: #222C49;
+    --color-destructive: #FF718F;
+    --color-destructive-foreground: #080D1E;
+    --color-success: #9CE279;
+    --color-success-foreground: #080D1E;
+    --color-chart1: #4384FF;
+    --color-chart2: #35D8E2;
+    --color-chart3: #B18BF8;
+    --color-chart4: #F582CE;
+    --color-chart5: #F1C668;
+    --font-heading: 'Oxanium', sans-serif;
+    --font-body: 'Manrope', sans-serif;
+    --radius: 16px;
+  }
+
+  body {
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+    padding: 0;
+  }
+  </style>
+</head>
+<body class="bg-background text-foreground m-0 p-0">
+  <div class="h-screen w-screen overflow-hidden">
+    <div class="relative min-h-screen w-full overflow-hidden bg-background font-body text-foreground">
+      <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_52%_18%,#25245b_0%,#111936_36%,#080d1e_72%)]"></div>
+      <div class="pointer-events-none absolute -left-24 top-56 h-64 w-64 rounded-full bg-secondary/15 blur-3xl"></div>
+      <div class="pointer-events-none absolute -right-24 top-80 h-64 w-64 rounded-full bg-accent/10 blur-3xl"></div>
+      <div class="pointer-events-none absolute inset-x-0 top-20 h-72 opacity-60" style="background-image:radial-gradient(circle at 12% 22%,white 1px,transparent 2px),radial-gradient(circle at 81% 14%,#35D8E2 1px,transparent 2px),radial-gradient(circle at 72% 65%,white 1px,transparent 2px),radial-gradient(circle at 29% 78%,#A689F1 1px,transparent 2px),radial-gradient(circle at 91% 85%,white 1px,transparent 2px)"></div>
+
+      <main class="relative z-10 px-5 pb-40 pt-12">
+        <header class="flex h-10 items-center justify-between">
+          <a href="#" aria-label="Geri dön" class="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-card/80 text-card-foreground backdrop-blur-xl">
+            <iconify-icon icon="lucide:arrow-left" class="text-xl"></iconify-icon>
+          </a>
+          <div class="flex items-center gap-1.5 rounded-full border border-accent/20 bg-card/75 px-3 py-1.5 backdrop-blur-xl">
+            <span class="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_10px_#35D8E2]"></span>
+            <span class="font-heading text-[10px] font-extrabold tracking-[0.14em] text-accent">İLK UÇUŞ</span>
+          </div>
+        </header>
+
+        <section class="mt-5 text-center">
+          <div class="font-heading text-[31px] font-black italic leading-none tracking-[-0.07em] drop-shadow-[0_0_16px_rgba(67,132,255,0.45)]">SWARM<span class="text-accent">.IO</span></div>
+          <h1 class="mt-3 font-heading text-[25px] font-black leading-tight">Sürüye katıl.</h1>
+          <p class="mx-auto mt-1 max-w-[290px] text-[13px] leading-5 text-muted-foreground">Adını seç, yaratığını kap ve ilk arenana dal.</p>
+        </section>
+
+        <section class="mt-6">
+          <div class="mb-2 flex items-center justify-between">
+            <label for="nickname" class="font-heading text-[13px] font-extrabold">Oyuncu adın</label>
+            <span class="flex items-center gap-1 text-[10px] font-bold text-success"><iconify-icon icon="lucide:badge-check" class="text-sm"></iconify-icon> Uygun</span>
+          </div>
+          <div class="flex h-[54px] items-center gap-3 rounded-theme border border-success/40 bg-input px-4 shadow-[0_0_18px_rgba(156,226,121,0.08)]">
+            <iconify-icon icon="lucide:user-round" class="text-lg text-muted-foreground"></iconify-icon>
+            <input id="nickname" type="text" value="Nova" maxlength="16" aria-label="Oyuncu adın" class="min-w-0 flex-1 bg-transparent font-heading text-[16px] font-bold text-foreground outline-none" />
+            <iconify-icon icon="lucide:check" class="text-lg text-success"></iconify-icon>
+          </div>
+          <p class="mt-1.5 text-[10px] text-muted-foreground">Arenada bu adla tanınacaksın.</p>
+        </section>
+
+        <section class="mt-6">
+          <div class="flex items-end justify-between">
+            <div>
+              <p class="font-heading text-[10px] font-extrabold tracking-[0.18em] text-accent">YARATIK SEÇİMİ</p>
+              <h2 class="mt-0.5 font-heading text-[19px] font-black leading-tight">İlk savaşçın</h2>
+            </div>
+            <span class="flex items-center gap-1 pb-1 text-[10px] font-bold text-muted-foreground"><iconify-icon icon="lucide:move-horizontal" class="text-sm"></iconify-icon> Kaydır</span>
+          </div>
+
+          <div class="-mx-5 mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none]">
+            <button aria-label="Neon Yılan seçili, önerilen" class="relative w-[250px] shrink-0 snap-start rounded-theme border-2 border-primary bg-primary/10 p-3 text-left shadow-[0_0_24px_rgba(67,132,255,0.18)]">
+              <span class="absolute right-3 top-3 z-20 flex items-center gap-1 rounded-full border border-accent/25 bg-card/90 px-2 py-1 text-[9px] font-extrabold tracking-wide text-accent"><iconify-icon icon="lucide:sparkles" class="text-xs"></iconify-icon> ÖNERİLEN</span>
+              <div class="relative flex h-[139px] items-center justify-center">
+                <div class="absolute h-24 w-36 rounded-full bg-accent/15 blur-2xl"></div>
+                <div class="absolute bottom-2 h-12 w-36 rounded-full border border-accent/20 bg-accent/5 blur-sm"></div>
+                <img data-image-id="05331efb-f07e-4348-8cf6-9689fa95095e" data-image-intent="A single cute but fierce electric-cyan arcade serpent coiled in a dynamic S-shape, sharply recognizable angular head silhouette, luminous mischievous eyes, compact armored scales, restrained plasma trail, premium stylized 3D game character art" data-image-type="illustration" data-image-aspect="1:1" data-image-background="transparent" alt="Neon Yılan" class="relative z-10 h-[142px] w-[190px] object-contain drop-shadow-[0_10px_22px_rgba(53,216,226,0.38)]" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/05331efb-f07e-4348-8cf6-9689fa95095e.png" />
+              </div>
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="font-heading text-[16px] font-black">Neon Yılan</h3>
+                  <p class="mt-0.5 text-[10px] text-muted-foreground">Çevik, dengeli; ilk avın için biçilmiş kaftan.</p>
+                </div>
+                <span class="ml-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"><iconify-icon icon="lucide:check" class="text-base"></iconify-icon></span>
+              </div>
+            </button>
+
+            <button aria-label="Plazma Ejderhası seç" class="relative w-[202px] shrink-0 snap-start rounded-theme border border-border/40 bg-card/85 p-3 text-left text-card-foreground">
+              <div class="relative flex h-[139px] items-center justify-center">
+                <div class="absolute h-24 w-32 rounded-full bg-secondary/15 blur-2xl"></div>
+                <img data-image-id="ef5d31f4-b81b-48c5-8aeb-bc5ba1544b23" data-image-intent="A single playful but formidable violet plasma dragon arcade creature with broad angular wings, horned head, segmented floating tail and bright mischievous eyes, distinct powerful silhouette, premium stylized 3D game character art" data-image-type="illustration" data-image-aspect="1:1" data-image-background="transparent" alt="Plazma Ejderhası" class="relative z-10 h-[142px] w-[175px] object-contain drop-shadow-[0_10px_20px_rgba(166,137,241,0.3)]" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/ef5d31f4-b81b-48c5-8aeb-bc5ba1544b23.png" />
+              </div>
+              <h3 class="font-heading text-[14px] font-black">Plazma Ejderhası</h3>
+              <p class="mt-0.5 text-[10px] leading-4 text-muted-foreground">Güçlü hamleler, geniş kanatlı bir avcı.</p>
+            </button>
+
+            <button aria-label="Toksik Sürü seç" class="relative w-[202px] shrink-0 snap-start rounded-theme border border-border/40 bg-card/85 p-3 text-left text-card-foreground">
+              <div class="relative flex h-[139px] items-center justify-center">
+                <div class="absolute h-24 w-32 rounded-full bg-success/15 blur-2xl"></div>
+                <img data-image-id="7d4c592a-5384-41ca-b607-0b8b826c144d" data-image-intent="A single mischievous toxic-green swarm creature formed as a compact many-eyed beetle-like leader with asymmetrical feelers and a short trail of tiny orbiting minions, unmistakably different silhouette, premium stylized 3D arcade game character art" data-image-type="illustration" data-image-aspect="1:1" data-image-background="transparent" alt="Toksik Sürü" class="relative z-10 h-[142px] w-[175px] object-contain drop-shadow-[0_10px_20px_rgba(156,226,121,0.28)]" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/7d4c592a-5384-41ca-b607-0b8b826c144d.png" />
+              </div>
+              <h3 class="font-heading text-[14px] font-black">Toksik Sürü</h3>
+              <p class="mt-0.5 text-[10px] leading-4 text-muted-foreground">Zehirli izlerle rakibin yolunu kes.</p>
+            </button>
+
+            <button aria-label="Boşluk Avcısı seç" class="relative w-[202px] shrink-0 snap-start rounded-theme border border-border/40 bg-card/85 p-3 text-left text-card-foreground">
+              <div class="relative flex h-[139px] items-center justify-center">
+                <div class="absolute h-24 w-32 rounded-full bg-[#F582CE]/15 blur-2xl"></div>
+                <img data-image-id="5df22970-260f-402d-812e-32fe7c347828" data-image-intent="A single sleek magenta void hunter arcade creature, crescent-shaped armored body with a narrow pointed mask-like head and long ribbon tendrils, luminous playful eyes, distinct predatory silhouette, premium stylized 3D game character art" data-image-type="illustration" data-image-aspect="1:1" data-image-background="transparent" alt="Boşluk Avcısı" class="relative z-10 h-[142px] w-[175px] object-contain drop-shadow-[0_10px_20px_rgba(245,130,206,0.3)]" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/5df22970-260f-402d-812e-32fe7c347828.png" />
+              </div>
+              <h3 class="font-heading text-[14px] font-black">Boşluk Avcısı</h3>
+              <p class="mt-0.5 text-[10px] leading-4 text-muted-foreground">Atılgan bir dalışla rakibini şaşırt.</p>
+            </button>
+
+            <button aria-label="Buz Canavarı seç" class="relative w-[202px] shrink-0 snap-start rounded-theme border border-border/40 bg-card/85 p-3 text-left text-card-foreground">
+              <div class="relative flex h-[139px] items-center justify-center">
+                <div class="absolute h-24 w-32 rounded-full bg-accent/15 blur-2xl"></div>
+                <img data-image-id="9f2d5190-b780-4638-a916-3d664b225a4e" data-image-intent="A single friendly yet tough ice-blue arcade beast with a broad bear-like head, crystalline back spines, chunky compact body and bright mischievous eyes, clearly distinct silhouette, premium stylized 3D game character art" data-image-type="illustration" data-image-aspect="1:1" data-image-background="transparent" alt="Buz Canavarı" class="relative z-10 h-[142px] w-[175px] object-contain drop-shadow-[0_10px_20px_rgba(53,216,226,0.28)]" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/9f2d5190-b780-4638-a916-3d664b225a4e.png" />
+              </div>
+              <h3 class="font-heading text-[14px] font-black">Buz Canavarı</h3>
+              <p class="mt-0.5 text-[10px] leading-4 text-muted-foreground">Sağlam dur, doğru anı bekle.</p>
+            </button>
+          </div>
+        </section>
+
+        <section class="mt-3 flex items-center gap-3 rounded-theme border border-white/10 bg-card/85 px-3 py-3 text-card-foreground backdrop-blur-xl">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent"><iconify-icon icon="lucide:gamepad-2" class="text-xl"></iconify-icon></span>
+          <div class="min-w-0 flex-1">
+            <p class="font-heading text-[12px] font-extrabold">İlk maçın: 60 saniyelik öğretici</p>
+            <p class="mt-0.5 text-[10px] leading-4 text-muted-foreground">Enerji topla, büyü; DASH, SHIELD ve MAGNET hazır.</p>
+          </div>
+          <iconify-icon icon="lucide:arrow-right" class="text-lg text-accent"></iconify-icon>
+        </section>
+      </main>
+
+      <div class="pointer-events-none fixed inset-x-0 bottom-0 z-20 h-36 bg-gradient-to-t from-background via-background/95 to-transparent"></div>
+      <div class="fixed inset-x-5 bottom-5 z-30">
+        <button class="flex h-[66px] w-full items-center justify-between rounded-theme bg-primary px-5 text-primary-foreground shadow-[0_8px_32px_rgba(67,132,255,0.45)]">
+          <span class="flex flex-col items-start leading-tight">
+            <span class="font-heading text-[10px] font-bold tracking-[0.12em] opacity-80">NOVA · NEON YILAN</span>
+            <span class="font-heading text-[20px] font-black italic tracking-wide">İLK MAÇA BAŞLA</span>
+          </span>
+          <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20"><iconify-icon icon="lucide:play" class="text-2xl"></iconify-icon></span>
+        </button>
+        <p class="mt-2 text-center text-[9px] font-semibold text-muted-foreground">Ücretsiz başla · Savaş gücü kozmetiklerden etkilenmez</p>
+      </div>
+    </div>
+  </div>
+  <script>
+    // Icon self-healing: a missing icon name renders as INVISIBLE empty space
+    // (iconify-icon fails silently). Its `status` property ('rendered' |
+    // 'loading' | 'failed') lets us swap failures to a neutral glyph.
+    (function() {
+      var els = document.querySelectorAll('iconify-icon');
+      for (var i = 0; i < els.length; i++) (function(el) {
+        var tries = 0;
+        (function check() {
+          var s = el.status;
+          if (s === 'failed') el.setAttribute('icon', 'lucide:circle');
+          else if (s !== 'rendered' && tries++ < 40) setTimeout(check, 250);
+        })();
+      })(els[i]);
+    })();
+  </script>
+</body>
+</html>

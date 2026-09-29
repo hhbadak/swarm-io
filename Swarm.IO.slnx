@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="src/Swarm.Domain/Swarm.Domain.csproj" />
+  <Project Path="src/Swarm.Application/Swarm.Application.csproj" />
+  <Project Path="src/Swarm.Infrastructure/Swarm.Infrastructure.csproj" />
+  <Project Path="src/Swarm.Api/Swarm.Api.csproj" />
+  <Project Path="src/Swarm.GameServer/Swarm.GameServer.csproj" />
+  <Project Path="tests/Swarm.Tests/Swarm.Tests.csproj" />
+</Solution>

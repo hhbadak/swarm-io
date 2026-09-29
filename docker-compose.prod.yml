@@ -1,0 +1,80 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: [swarm-postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [swarm-redis:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  game-server:
+    build:
+      context: .
+      dockerfile: src/Swarm.GameServer/Dockerfile
+    restart: unless-stopped
+    environment:
+      SWARM_TOKEN_SECRET: ${SWARM_TOKEN_SECRET}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+  api:
+    build:
+      context: .
+      dockerfile: src/Swarm.Api/Dockerfile
+    restart: unless-stopped
+    environment:
+      SWARM_DB_PROVIDER: Postgres
+      SWARM_TOKEN_SECRET: ${SWARM_TOKEN_SECRET}
+      SWARM_ADMIN_KEY: ${SWARM_ADMIN_KEY}
+      SWARM_REDIS_HOST: redis
+      SWARM_GAME_WS_URL: wss://${SWARM_DOMAIN}/ws/arena
+      SWARM_AUTO_CREATE_DATABASE: "true"
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      STRIPE_PRICE_SPARK: ${STRIPE_PRICE_SPARK}
+      STRIPE_PRICE_NOVA: ${STRIPE_PRICE_NOVA}
+      STRIPE_PRICE_GALAXY: ${STRIPE_PRICE_GALAXY}
+      ConnectionStrings__Swarm: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      game-server: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+  gateway:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      SWARM_DOMAIN: ${SWARM_DOMAIN}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./deployment/Caddyfile:/etc/caddy/Caddyfile:ro
+      - swarm-caddy-data:/data
+      - swarm-caddy-config:/config
+    depends_on:
+      api: { condition: service_healthy }
+volumes:
+  swarm-postgres:
+  swarm-redis:
+  swarm-caddy-data:
+  swarm-caddy-config:

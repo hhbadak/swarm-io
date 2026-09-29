@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mağaza — SWARM.IO</title>
+
+  <!-- Tailwind CSS (pinned — matches the renderer/screenshot surfaces) -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        colors: {
+          background: 'rgb(8 13 30 / <alpha-value>)',
+          foreground: 'rgb(243 246 255 / <alpha-value>)',
+          primary: { DEFAULT: 'rgb(67 132 255 / <alpha-value>)', foreground: 'rgb(7 17 38 / <alpha-value>)' },
+          secondary: { DEFAULT: 'rgb(166 137 241 / <alpha-value>)', foreground: 'rgb(8 13 30 / <alpha-value>)' },
+          accent: { DEFAULT: 'rgb(53 216 226 / <alpha-value>)', foreground: 'rgb(7 17 38 / <alpha-value>)' },
+          muted: { DEFAULT: 'rgb(34 44 73 / <alpha-value>)', foreground: 'rgb(191 203 228 / <alpha-value>)' },
+          card: { DEFAULT: 'rgb(21 28 53 / <alpha-value>)', foreground: 'rgb(243 246 255 / <alpha-value>)' },
+          border: 'rgb(101 119 151 / <alpha-value>)',
+          input: 'rgb(34 44 73 / <alpha-value>)',
+          destructive: { DEFAULT: 'rgb(255 113 143 / <alpha-value>)', foreground: 'rgb(8 13 30 / <alpha-value>)' },
+          success: { DEFAULT: 'rgb(156 226 121 / <alpha-value>)', foreground: 'rgb(8 13 30 / <alpha-value>)' },
+          chart1: 'rgb(67 132 255 / <alpha-value>)',
+          chart2: 'rgb(53 216 226 / <alpha-value>)',
+          chart3: 'rgb(177 139 248 / <alpha-value>)',
+          chart4: 'rgb(245 130 206 / <alpha-value>)',
+          chart5: 'rgb(241 198 104 / <alpha-value>)',
+          ring: 'rgb(67 132 255 / <alpha-value>)',
+        },
+        fontFamily: {
+          heading: ['var(--font-heading, Inter)', 'system-ui'],
+          body: ['var(--font-body, Inter)', 'system-ui'],
+        },
+        borderRadius: { DEFAULT: 'var(--radius, 12px)', theme: 'var(--radius, 12px)' },
+      }}
+    };
+</script>
+
+  <!-- Iconify Web Component -->
+  <script src="https://code.iconify.design/iconify-icon/2.3.0/iconify-icon.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oxanium:wght@100;200;300;400;500;600;700;800;900&family=Manrope:wght@100;200;300;400;500;600;700;800;900&display=swap">
+
+  <!-- Design Tokens + Custom Classes -->
+  <style>
+  :root {
+    --color-background: #080D1E;
+    --color-foreground: #F3F6FF;
+    --color-primary: #4384FF;
+    --color-primary-foreground: #071126;
+    --color-secondary: #A689F1;
+    --color-secondary-foreground: #080D1E;
+    --color-accent: #35D8E2;
+    --color-accent-foreground: #071126;
+    --color-muted: #222C49;
+    --color-muted-foreground: #BFCBE4;
+    --color-card: #151C35;
+    --color-card-foreground: #F3F6FF;
+    --color-border: #657797;
+    --color-input: #222C49;
+    --color-destructive: #FF718F;
+    --color-destructive-foreground: #080D1E;
+    --color-success: #9CE279;
+    --color-success-foreground: #080D1E;
+    --color-chart1: #4384FF;
+    --color-chart2: #35D8E2;
+    --color-chart3: #B18BF8;
+    --color-chart4: #F582CE;
+    --color-chart5: #F1C668;
+    --font-heading: 'Oxanium', sans-serif;
+    --font-body: 'Manrope', sans-serif;
+    --radius: 16px;
+  }
+
+  body {
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+    padding: 0;
+  }
+  </style>
+</head>
+<body class="bg-background text-foreground m-0 p-0">
+  <div class="h-screen w-screen overflow-hidden">
+    <div class="relative min-h-screen w-full overflow-hidden bg-background font-body text-foreground">
+      <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_55%_12%,#252453_0%,#111936_35%,#080d1e_72%)]"></div>
+      <div class="pointer-events-none absolute right-[-95px] top-44 h-64 w-64 rounded-full bg-accent/10 blur-3xl"></div>
+      <div class="pointer-events-none absolute left-[-100px] top-96 h-64 w-64 rounded-full bg-secondary/10 blur-3xl"></div>
+
+      <main class="relative z-10 px-5 pb-48 pt-12">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="font-heading text-[10px] font-extrabold tracking-[0.22em] text-accent">KOZMETİK KOLEKSİYONU</p>
+            <h1 class="mt-1 font-heading text-[30px] font-black leading-none tracking-tight">Mağaza</h1>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="flex h-10 items-center gap-1.5 rounded-theme border border-white/10 bg-card/90 px-2.5 text-card-foreground backdrop-blur-xl">
+              <iconify-icon icon="lucide:coins" class="text-base text-[#F1C668]"></iconify-icon>
+              <span class="font-heading text-xs font-bold">1.250</span>
+            </div>
+            <div class="flex h-10 items-center gap-1.5 rounded-theme border border-white/10 bg-card/90 px-2.5 text-card-foreground backdrop-blur-xl">
+              <iconify-icon icon="lucide:gem" class="text-base text-accent"></iconify-icon>
+              <span class="font-heading text-xs font-bold">24</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-5 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+          <button class="shrink-0 rounded-full bg-primary px-4 py-2 text-xs font-extrabold text-primary-foreground">İzler</button>
+          <button class="shrink-0 rounded-full border border-white/10 bg-card/80 px-4 py-2 text-xs font-bold text-muted-foreground">Görünümler</button>
+          <button class="shrink-0 rounded-full border border-white/10 bg-card/80 px-4 py-2 text-xs font-bold text-muted-foreground">Ölüm Efektleri</button>
+          <button class="shrink-0 rounded-full border border-white/10 bg-card/80 px-4 py-2 text-xs font-bold text-muted-foreground">Duygular</button>
+          <button class="shrink-0 rounded-full border border-white/10 bg-card/80 px-4 py-2 text-xs font-bold text-muted-foreground">İsimlikler</button>
+          <button class="shrink-0 rounded-full border border-white/10 bg-card/80 px-4 py-2 text-xs font-bold text-muted-foreground">Paketler</button>
+        </div>
+
+        <div class="mt-3 flex items-center gap-2 rounded-xl border border-accent/20 bg-accent/10 px-3 py-2">
+          <iconify-icon icon="lucide:shield-check" class="shrink-0 text-base text-accent"></iconify-icon>
+          <p class="text-[11px] font-semibold text-muted-foreground"><span class="text-card-foreground">Yalnızca kozmetik</span> · Savaşta avantaj sağlamaz</p>
+        </div>
+
+        <section class="mt-5">
+          <div class="mb-2 flex items-end justify-between">
+            <div>
+              <p class="text-[10px] font-extrabold tracking-[0.18em] text-accent">ÖNE ÇIKAN İZ</p>
+              <h2 class="font-heading text-lg font-black">Yıldırım Akını</h2>
+            </div>
+            <span class="rounded-full border border-accent/25 bg-accent/10 px-2.5 py-1 text-[10px] font-extrabold text-accent">NADİR</span>
+          </div>
+
+          <div class="relative overflow-hidden rounded-theme border border-primary/50 bg-card text-card-foreground shadow-[0_0_28px_rgba(67,132,255,0.12)]">
+            <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_52%_45%,rgba(53,216,226,0.19),transparent_58%)]"></div>
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/70 to-transparent"></div>
+            <div class="relative flex h-[148px] items-center justify-center">
+              <div class="absolute h-24 w-56 rounded-full bg-primary/20 blur-3xl"></div>
+              <img data-image-id="6c766c02-e4b6-4120-8a09-a61a68df1df4" data-image-intent="A close-up isolated electric lightning trail effect for an arcade game, a sharp zigzag cyan-blue plasma streak with crisp angular forks and a few bright sparks streaming behind it, premium game VFX, no character" data-image-type="illustration" data-image-aspect="16:9" data-image-background="transparent" alt="Yıldırım Akını izi" class="relative h-[138px] w-full object-contain drop-shadow-[0_0_22px_rgba(53,216,226,0.55)]" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/6c766c02-e4b6-4120-8a09-a61a68df1df4.png" />
+              <span class="absolute left-3 top-3 rounded-lg border border-white/10 bg-background/75 px-2 py-1 text-[9px] font-extrabold tracking-wider text-muted-foreground backdrop-blur">ÖNİZLEME</span>
+              <span class="absolute bottom-3 right-3 flex items-center gap-1 rounded-full bg-background/80 px-2.5 py-1 text-[10px] font-bold text-card-foreground backdrop-blur"><iconify-icon icon="lucide:eye" class="text-sm text-accent"></iconify-icon> Dokunup incele</span>
+            </div>
+            <div class="relative border-t border-white/10 px-4 py-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="font-heading text-sm font-black">Keskin, hızlı, elektrikli.</p>
+                  <p class="mt-0.5 text-[11px] text-muted-foreground">Yılanının ardında yıldırım çatalları bırak.</p>
+                </div>
+                <span class="ml-3 flex shrink-0 items-center gap-1 font-heading text-sm font-black"><iconify-icon icon="lucide:coins" class="text-base text-[#F1C668]"></iconify-icon>300</span>
+              </div>
+              <div class="mt-3 flex items-center gap-2 rounded-xl border border-white/10 bg-background/50 px-3 py-2">
+                <iconify-icon icon="lucide:sparkles" class="text-base text-accent"></iconify-icon>
+                <p class="text-[10px] leading-snug text-muted-foreground">Maçlarda görünür. Hareketini ya da yeteneklerini değiştirmez.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="mt-5">
+          <div class="mb-2 flex items-center justify-between">
+            <h2 class="font-heading text-sm font-black">İz koleksiyonu</h2>
+            <span class="text-[10px] font-bold text-muted-foreground">6 eşya</span>
+          </div>
+
+          <div class="space-y-2">
+            <button class="flex w-full items-center gap-3 rounded-theme border border-primary/50 bg-primary/10 p-2.5 text-left text-card-foreground">
+              <span class="relative flex h-[60px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-background/70">
+                <span class="absolute inset-0 bg-accent/10 blur-xl"></span>
+                <img data-image-id="9113d46c-2eb5-4b1d-8d5a-45b812a9b07e" data-image-intent="A close-up isolated electric lightning trail effect for an arcade game, a sharp zigzag cyan-blue plasma streak with crisp angular forks and a few bright sparks streaming behind it, premium game VFX, no character" data-image-type="illustration" data-image-aspect="1:1" data-image-background="transparent" alt="Yıldırım Akını" class="relative h-full w-full object-contain drop-shadow-lg" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/9113d46c-2eb5-4b1d-8d5a-45b812a9b07e.png" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="flex items-center gap-1.5"><span class="truncate font-heading text-xs font-black">Yıldırım Akını</span><span class="rounded bg-accent/15 px-1.5 py-0.5 text-[8px] font-extrabold text-accent">NADİR</span></span>
+                <span class="mt-1 block text-[10px] text-muted-foreground">Keskin elektrik çatalları</span>
+                <span class="mt-1.5 flex items-center gap-1 font-heading text-[10px] font-bold"><iconify-icon icon="lucide:coins" class="text-xs text-[#F1C668]"></iconify-icon>300 Altın</span>
+              </span>
+              <iconify-icon icon="lucide:chevron-down" class="text-base text-primary"></iconify-icon>
+            </button>
+
+            <button class="flex w-full items-center gap-3 rounded-theme border border-white/10 bg-card p-2.5 text-left text-card-foreground">
+              <span class="relative flex h-[60px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-background/70">
+                <span class="absolute inset-0 bg-[#F582CE]/10 blur-xl"></span>
+                <img data-image-id="34319a71-eb1d-4c2e-9faa-4c08e8189543" data-image-intent="A close-up isolated fire trail effect for an arcade game, flowing orange and hot magenta flame ribbons with ember flecks that drift and flicker in a tapered stream, premium game VFX, no character" data-image-type="illustration" data-image-aspect="1:1" data-image-background="transparent" alt="Kor Alevi" class="relative h-full w-full object-contain drop-shadow-lg" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/34319a71-eb1d-4c2e-9faa-4c08e8189543.png" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="flex items-center gap-1.5"><span class="truncate font-heading text-xs font-black">Kor Alevi</span><span class="rounded bg-muted px-1.5 py-0.5 text-[8px] font-extrabold text-muted-foreground">ALIŞILMIŞ</span></span>
+                <span class="mt-1 block text-[10px] text-muted-foreground">Kıvılcım savuran alev dalgası</span>
+                <span class="mt-1.5 flex items-center gap-1 font-heading text-[10px] font-bold"><iconify-icon icon="lucide:coins" class="text-xs text-[#F1C668]"></iconify-icon>120 Altın</span>
+              </span>
+              <iconify-icon icon="lucide:chevron-right" class="text-base text-muted-foreground"></iconify-icon>
+            </button>
+
+            <button class="flex w-full items-center gap-3 rounded-theme border border-white/10 bg-card p-2.5 text-left text-card-foreground">
+              <span class="relative flex h-[60px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-background/70">
+                <span class="absolute inset-0 bg-secondary/10 blur-xl"></span>
+                <img data-image-id="300da82a-be95-4aba-a3cc-b9b28c178947" data-image-intent="A close-up isolated plasma trail effect for an arcade game, a braided violet and cyan energy ribbon with smooth flowing arcs and tiny orbiting plasma beads, premium game VFX, no character" data-image-type="illustration" data-image-aspect="1:1" data-image-background="transparent" alt="Plazma Örgüsü" class="relative h-full w-full object-contain drop-shadow-lg" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/300da82a-be95-4aba-a3cc-b9b28c178947.png" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="flex items-center gap-1.5"><span class="truncate font-heading text-xs font-black">Plazma Örgüsü</span><span class="rounded bg-secondary/15 px-1.5 py-0.5 text-[8px] font-extrabold text-secondary">DESTANSI</span></span>
+                <span class="mt-1 block text-[10px] text-muted-foreground">Dönen enerji boncukları</span>
+                <span class="mt-1.5 flex items-center gap-1 font-heading text-[10px] font-bold"><iconify-icon icon="lucide:gem" class="text-xs text-accent"></iconify-icon>90 Mücevher</span>
+              </span>
+              <iconify-icon icon="lucide:chevron-right" class="text-base text-muted-foreground"></iconify-icon>
+            </button>
+
+            <button class="flex w-full items-center gap-3 rounded-theme border border-white/10 bg-card p-2.5 text-left text-card-foreground">
+              <span class="relative flex h-[60px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-background/70">
+                <span class="absolute inset-0 bg-secondary/10 blur-xl"></span>
+                <img data-image-id="9d9167dc-a8c3-4f14-886b-d523044be112" data-image-intent="A close-up isolated void trail effect for an arcade game, a dark violet curved rift ribbon that bends inward with sparse tiny starlike particles and a clean silhouette, premium game VFX, no character" data-image-type="illustration" data-image-aspect="1:1" data-image-background="transparent" alt="Boşluk Yarığı" class="relative h-full w-full object-contain drop-shadow-lg" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/9d9167dc-a8c3-4f14-886b-d523044be112.png" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="flex items-center gap-1.5"><span class="truncate font-heading text-xs font-black">Boşluk Yarığı</span><span class="rounded bg-secondary/15 px-1.5 py-0.5 text-[8px] font-extrabold text-secondary">DESTANSI</span></span>
+                <span class="mt-1 block text-[10px] text-muted-foreground">İçine çeken mor bir kıvrım</span>
+                <span class="mt-1.5 flex items-center gap-1 font-heading text-[10px] font-bold"><iconify-icon icon="lucide:coins" class="text-xs text-[#F1C668]"></iconify-icon>600 Altın</span>
+              </span>
+              <iconify-icon icon="lucide:chevron-right" class="text-base text-muted-foreground"></iconify-icon>
+            </button>
+
+            <button class="flex w-full items-center gap-3 rounded-theme border border-white/10 bg-card p-2.5 text-left text-card-foreground">
+              <span class="relative flex h-[60px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-background/70">
+                <span class="absolute inset-0 bg-[#F1C668]/10 blur-xl"></span>
+                <img data-image-id="aab66b2e-473c-4000-b48c-c714ade33e43" data-image-intent="A close-up isolated galaxy trail effect for an arcade game, a sweeping indigo and cyan cosmic ribbon with tiny gold star particles and a delicate luminous halo, premium legendary game VFX, no character" data-image-type="illustration" data-image-aspect="1:1" data-image-background="transparent" alt="Galaksi Tozu" class="relative h-full w-full object-contain drop-shadow-lg" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/aab66b2e-473c-4000-b48c-c714ade33e43.png" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="flex items-center gap-1.5"><span class="truncate font-heading text-xs font-black">Galaksi Tozu</span><span class="rounded bg-[#F1C668]/15 px-1.5 py-0.5 text-[8px] font-extrabold text-[#F1C668]">EFSANEVİ</span></span>
+                <span class="mt-1 block text-[10px] text-muted-foreground">Altın yıldızlar ve yumuşak aura</span>
+                <span class="mt-1.5 flex items-center gap-1 font-heading text-[10px] font-bold"><iconify-icon icon="lucide:gem" class="text-xs text-accent"></iconify-icon>180 Mücevher</span>
+              </span>
+              <iconify-icon icon="lucide:chevron-right" class="text-base text-muted-foreground"></iconify-icon>
+            </button>
+
+            <button class="flex w-full items-center gap-3 rounded-theme border border-white/10 bg-card p-2.5 text-left text-card-foreground">
+              <span class="relative flex h-[60px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-background/70">
+                <span class="absolute inset-0 bg-success/10 blur-xl"></span>
+                <img data-image-id="919d9eff-8cb7-466e-84ae-2ea5e245920d" data-image-intent="A close-up isolated toxic trail effect for an arcade game, a vivid acid-green curling vapor stream with distinct bubbling droplets and small wispy particles, premium game VFX, no character" data-image-type="illustration" data-image-aspect="1:1" data-image-background="transparent" alt="Toksik Sızıntı" class="relative h-full w-full object-contain drop-shadow-lg" src="https://fwtngjyirchhhysukjxi.supabase.co/storage/v1/object/public/project-images/baedd667-994a-4984-b95c-6d754cdc0e1c/919d9eff-8cb7-466e-84ae-2ea5e245920d.png" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="flex items-center gap-1.5"><span class="truncate font-heading text-xs font-black">Toksik Sızıntı</span><span class="rounded bg-[#F1C668]/15 px-1.5 py-0.5 text-[8px] font-extrabold text-[#F1C668]">EFSANEVİ</span></span>
+                <span class="mt-1 block text-[10px] text-muted-foreground">Zehirli kabarcıklar ve duman</span>
+                <span class="mt-1.5 flex items-center gap-1 font-heading text-[10px] font-bold"><iconify-icon icon="lucide:coins" class="text-xs text-[#F1C668]"></iconify-icon>900 Altın</span>
+              </span>
+              <iconify-icon icon="lucide:chevron-right" class="text-base text-muted-foreground"></iconify-icon>
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <div class="pointer-events-none fixed inset-x-0 bottom-0 z-20 h-44 bg-gradient-to-t from-background via-background/95 to-transparent"></div>
+      <div class="fixed inset-x-5 bottom-[100px] z-30">
+        <button class="flex h-14 w-full items-center justify-between rounded-theme bg-primary px-4 text-primary-foreground shadow-[0_8px_32px_rgba(67,132,255,0.42)]">
+          <span class="flex items-center gap-2">
+            <iconify-icon icon="lucide:zap" class="text-xl"></iconify-icon>
+            <span class="text-left leading-tight"><span class="block font-heading text-[10px] font-bold opacity-75">YILDIRIM AKINI</span><span class="block font-heading text-base font-black">ÖNİZLE VE AL</span></span>
+          </span>
+          <span class="flex items-center gap-1 rounded-xl bg-white/20 px-3 py-2 font-heading text-sm font-black"><iconify-icon icon="lucide:coins" class="text-base"></iconify-icon>300</span>
+        </button>
+      </div>
+
+      <nav data-fv-tabbar class="fixed inset-x-5 bottom-4 z-30 flex h-[66px] items-center justify-around rounded-[22px] border border-white/10 bg-card/95 px-1.5 shadow-xl shadow-black/40 backdrop-blur-xl">
+        <a data-fv-tab="Ana Menü" href="#" class="flex h-[54px] w-[82px] flex-col items-center justify-center gap-0.5 text-muted-foreground"><iconify-icon icon="lucide:house" class="text-xl"></iconify-icon><span class="text-[10px] font-bold">Ana Menü</span></a>
+        <a data-fv-tab="Karakterler" href="#" class="flex h-[54px] w-[82px] flex-col items-center justify-center gap-0.5 text-muted-foreground"><iconify-icon icon="lucide:users" class="text-xl"></iconify-icon><span class="text-[10px] font-bold">Karakterler</span></a>
+        <a data-fv-tab="Mağaza" data-fv-tab-active="true" href="#" class="flex h-[54px] w-[82px] flex-col items-center justify-center gap-0.5 rounded-[17px] bg-primary text-primary-foreground"><iconify-icon icon="lucide:store" class="text-xl"></iconify-icon><span class="text-[10px] font-extrabold">Mağaza</span></a>
+        <a data-fv-tab="İlerleme" href="#" class="flex h-[54px] w-[82px] flex-col items-center justify-center gap-0.5 text-muted-foreground"><iconify-icon icon="lucide:trophy" class="text-xl"></iconify-icon><span class="text-[10px] font-bold">İlerleme</span></a>
+      </nav>
+    </div>
+  </div>
+  <script>
+    // Icon self-healing: a missing icon name renders as INVISIBLE empty space
+    // (iconify-icon fails silently). Its `status` property ('rendered' |
+    // 'loading' | 'failed') lets us swap failures to a neutral glyph.
+    (function() {
+      var els = document.querySelectorAll('iconify-icon');
+      for (var i = 0; i < els.length; i++) (function(el) {
+        var tries = 0;
+        (function check() {
+          var s = el.status;
+          if (s === 'failed') el.setAttribute('icon', 'lucide:circle');
+          else if (s !== 'rendered' && tries++ < 40) setTimeout(check, 250);
+        })();
+      })(els[i]);
+    })();
+  </script>
+</body>
+</html>

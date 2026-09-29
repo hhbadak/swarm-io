@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta name="theme-color" content="#030611">
+  <title>Arena — SWARM.IO</title>
+  <script src="./bootstrap.js"></script>
+  <script src="/runtime.js"></script>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/game.css">
+</head>
+<body class="game-page">
+  <canvas id="arena"></canvas>
+  <header class="hud">
+    <a href="/">SWARM.IO</a>
+    <div class="match-state"><span id="connection">BAĞLANIYOR</span><span id="danger">ENERJİ TOPLA · BÜYÜ · AVCILA</span></div>
+    <div class="hud-score"><strong id="score">0</strong><span>ENERJİ · <b id="rank">#—</b> · <b id="size">1.0×</b></span></div>
+  </header>
+  <div id="event-banner" class="event-banner" hidden></div>
+  <aside id="leaderboard" class="leaderboard"><h2>LİDERLİK</h2><ol></ol></aside>
+  <div class="mobile-stick" aria-hidden="true"></div>
+  <div class="ability-bar">
+    <button id="shield" type="button"><b>KALKAN</b><span>Q</span></button>
+    <button id="magnet" type="button"><b>ÇEKİM</b><span>E</span></button>
+    <button id="dash" type="button"><b>ATIL</b><span>SPACE</span></button>
+  </div>
+  <div class="instructions">Fare/dokunma ile yön ver · WASD/yön tuşları · SPACE atıl · Q kalkan · E çekim</div>
+  <section id="game-over" class="game-over" hidden>
+    <div class="result-card"><p>RUN OVER</p><h1 id="final-rank">#—</h1><div class="result-stats"><span><b id="final-score">0</b> SKOR</span><span><b id="final-kills">0</b> AVLAMA</span><span class="reward"><b id="final-coins">0</b> ALTIN</span></div><button id="play-again" type="button">TEKRAR OYNA</button><a href="/">ANA MENÜ</a></div>
+  </section>
+  <script src="/character-renderer.js" defer></script>
+  <script src="/game.js" defer></script>
+</body>
+</html>
