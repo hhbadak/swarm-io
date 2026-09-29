@@ -49,8 +49,9 @@ workflows:
 
       - name: Build signed IPA
         script: |
+          cd "$CM_BUILD_DIR/apps/mobile/ios/App"
           xcode-project build-ipa \
-            --project "$CM_BUILD_DIR/$XCODE_PROJECT" \
+            --project "App.xcodeproj" \
             --scheme "$XCODE_SCHEME" \
             --archive-flags "-clonedSourcePackagesDirPath $CM_BUILD_DIR/SourcePackages -destination 'generic/platform=iOS'"
 
