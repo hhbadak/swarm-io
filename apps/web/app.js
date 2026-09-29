@@ -21,7 +21,7 @@ function deviceId() {
 }
 
 async function api(path, options = {}) {
-  const response = await fetch(window.SwarmRuntime.apiUrl(path), options);
+  const response = await window.SwarmRuntime.request(path, options);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `İşlem başarısız (${response.status})`);
   return data;
@@ -107,9 +107,10 @@ function renderPaymentOffers() {
   const host = document.querySelector('#gem-offers');
   host.innerHTML = paymentOffers.map(offer => {
     const nativeProduct = window.SwarmPurchases?.product(offer);
-    const available = window.SwarmRuntime.native ? Boolean(nativeProduct) : offer.webAvailable;
+    const available = window.SwarmRuntime.native ? Boolean(nativeProduct) && !window.SwarmRuntime.offline : offer.webAvailable;
     const price = window.SwarmRuntime.native ? nativeProduct?.displayPrice : offer.webPriceLabel;
-    return `<button class="gem-offer" type="button" data-offer="${offer.id}" ${available ? '' : 'disabled'}><b>◆ ${offer.gems.toLocaleString('tr-TR')}</b><small>${offer.bonusLabel || 'KRİSTAL'}</small><strong>${available ? price : 'YAKINDA'}</strong></button>`;
+    const unavailableLabel = window.SwarmRuntime.offline ? 'SUNUCU GEREKLİ' : 'YAKINDA';
+    return `<button class="gem-offer" type="button" data-offer="${offer.id}" ${available ? '' : 'disabled'}><b>◆ ${offer.gems.toLocaleString('tr-TR')}</b><small>${offer.bonusLabel || 'KRİSTAL'}</small><strong>${available ? price : unavailableLabel}</strong></button>`;
   }).join('');
 }
 
@@ -125,6 +126,7 @@ async function startWebCheckout(offerId) {
 async function startNativeCheckout(offerId) {
   statusNode.textContent = 'App Store satın alma ekranı hazırlanıyor…';
   try {
+    if (window.SwarmRuntime.offline) throw new Error('Satın alma için canlı sunucu bağlantısı gerekiyor.');
     await ensureSession();
     const offer = paymentOffers.find(item => item.id === offerId);
     if (!offer) throw new Error('Kristal paketi bulunamadı.');
@@ -178,7 +180,7 @@ document.querySelector('#delete-account').addEventListener('click', async () => 
   if (!token()) return statusNode.textContent = 'Silinecek kayıtlı bir profil bulunmuyor.';
   if (!confirm('Profilin, ilerlemen, kozmetiklerin ve oyun geçmişin kalıcı olarak silinecek. Devam edilsin mi?')) return;
   try {
-    const response = await fetch(window.SwarmRuntime.apiUrl('/api/v1/profile'), { method: 'DELETE', headers: authHeaders() });
+    const response = await window.SwarmRuntime.request('/api/v1/profile', { method: 'DELETE', headers: authHeaders() });
     if (!response.ok && response.status !== 204) throw new Error('Hesap silinemedi.');
     sessionStorage.clear();
     localStorage.removeItem('swarm.deviceId');
@@ -215,15 +217,19 @@ function drawPreviews(time) {
 
 async function start() {
   try {
-    const health = await fetch(window.SwarmRuntime.apiUrl('/health/live')); if (!health.ok) throw new Error();
+    const health = await window.SwarmRuntime.request('/health/live'); if (!health.ok) throw new Error();
     [catalog, paymentOffers] = await Promise.all([api('/api/v1/store/catalog'), api('/api/v1/store/offers')]);
-    if (window.SwarmRuntime.native) await window.SwarmPurchases.loadProducts(paymentOffers);
+    if (window.SwarmRuntime.native) {
+      try { await window.SwarmPurchases.loadProducts(paymentOffers); }
+      catch { /* StoreKit ürünleri hazır değilse oyun ve gezinme çalışmaya devam eder. */ }
+    }
     renderPaymentOffers();
     selectItem('starter');
     if (token()) { await ensureSession(); statusNode.textContent = 'Profil hazır. Arenaya girebilirsin.'; }
     else { updateProfile(); statusNode.textContent = 'Sunucu hazır. Arenaya girebilirsin.'; }
+    if (window.SwarmRuntime.offline) statusNode.textContent = 'Çevrimdışı test modu hazır. Arenaya girebilirsin.';
   } catch { statusNode.textContent = 'Sunucuya ulaşılamıyor.'; }
   requestAnimationFrame(drawPreviews);
 }
 start();
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+if (!window.SwarmRuntime.native && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});

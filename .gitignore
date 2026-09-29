@@ -17,7 +17,9 @@ coverage/
 *-qa.png
 .qa-edge/
 .qa-edge-appstore/
+.qa-edge-offline/
 .superdesign/tmp/
+graphify-out/
 Library/
 Temp/
 Logs/

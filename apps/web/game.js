@@ -12,6 +12,9 @@ let socket;
 let input = { x: 0, y: 0 };
 let reconnectTimer;
 let lastOwnPlayer;
+let localMode = false;
+let localDashUntil = 0;
+let localArenaTimer;
 const trails = new Map();
 const visualRadii = new Map();
 
@@ -27,11 +30,12 @@ async function connect() {
   if (!accessToken || !playerId) return location.replace(window.SwarmRuntime.homeUrl);
   connectionNode.textContent = 'EŞLEŞİYOR';
   let response;
-  try { response = await fetch(window.SwarmRuntime.apiUrl('/api/v1/matchmaking/queue'), { method: 'POST', headers: { authorization: `Bearer ${accessToken}` } }); }
+  try { response = await window.SwarmRuntime.request('/api/v1/matchmaking/queue', { method: 'POST', headers: { authorization: `Bearer ${accessToken}` } }); }
   catch { connectionNode.textContent = 'SUNUCU BEKLENİYOR'; reconnectTimer = setTimeout(connect, 1800); return; }
   if (response.status === 401) return location.replace(window.SwarmRuntime.homeUrl);
   if (!response.ok) { connectionNode.textContent = 'TEKRAR DENENİYOR'; reconnectTimer = setTimeout(connect, 1800); return; }
   const assignment = await response.json();
+  if (assignment.offline) { startLocalArena(); return; }
   socket = new WebSocket(`${assignment.websocketUrl}?ticket=${encodeURIComponent(assignment.ticket)}`);
   socket.addEventListener('open', () => { connectionNode.textContent = 'CANLI'; sendInput(); });
   socket.addEventListener('close', () => { connectionNode.textContent = 'YENİDEN BAĞLANIYOR'; reconnectTimer = setTimeout(connect, 1200); });
@@ -43,7 +47,96 @@ async function connect() {
 }
 
 function sendInput(dash = false, ability = null) {
+  if (localMode) {
+    const own = snapshot.players.find(player => player.id === playerId);
+    if (dash) localDashUntil = performance.now() + 360;
+    if (own && ability === 'shield') own.shieldUntil = performance.now() + 3000;
+    if (own && ability === 'magnet') own.magnetUntil = performance.now() + 5000;
+    return;
+  }
   if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ ...input, dash, ability }));
+}
+
+function startLocalArena() {
+  if (localMode) return;
+  localMode = true;
+  connectionNode.textContent = 'CİHAZ İÇİ TEST';
+  const state = window.SwarmOffline?.read?.() ?? { nickname: 'Nova', equippedSkin: 'starter' };
+  const skins = ['starter', 'neon', 'hex', 'solar', 'void', 'gold'];
+  const names = ['Orion', 'Vega', 'Lyra', 'Atlas', 'Luna', 'Pulsar', 'Astra', 'Comet'];
+  const own = { id: playerId, nickname: state.nickname, skinId: state.equippedSkin, position: { x: 1600, y: 900 }, radius: 22, score: 0, kills: 0, alive: true };
+  const bots = names.map((nickname, index) => ({
+    id: `offline-bot-${index}`, nickname, skinId: skins[(index + 1) % skins.length],
+    position: { x: 250 + Math.random() * 2700, y: 180 + Math.random() * 1440 },
+    radius: 18 + Math.random() * 12, score: Math.floor(Math.random() * 80), kills: 0, alive: true,
+    angle: Math.random() * Math.PI * 2, turnAt: 0
+  }));
+  snapshot = {
+    players: [own, ...bots], arenaWidth: 3200, arenaHeight: 1800,
+    zones: [
+      { kind: 'speed', position: { x: 700, y: 450 }, radius: 210 },
+      { kind: 'gold', position: { x: 2500, y: 1250 }, radius: 230 },
+      { kind: 'gravity', position: { x: 1650, y: 920 }, radius: 180 }
+    ],
+    energy: Array.from({ length: 260 }, (_, index) => offlineOrb(index))
+  };
+  let previous = performance.now();
+  localArenaTimer = setInterval(() => {
+    const now = performance.now(), dt = Math.min(.05, (now - previous) / 1000); previous = now;
+    updateLocalArena(dt, now);
+  }, 32);
+}
+
+function offlineOrb(index = 0) {
+  const roll = Math.random();
+  return { id: `orb-${index}-${Math.random()}`, kind: roll > .985 ? 'core' : roll > .93 ? 'epic' : roll > .78 ? 'rare' : 'common', position: { x: 35 + Math.random() * 3130, y: 35 + Math.random() * 1730 } };
+}
+
+function updateLocalArena(dt, now) {
+  const own = snapshot.players.find(player => player.id === playerId);
+  if (!own?.alive) return;
+  const magnitude = Math.hypot(input.x, input.y) || 1;
+  const moving = Math.hypot(input.x, input.y) > 0;
+  const speed = (now < localDashUntil ? 620 : 245) / Math.max(1, own.radius / 24);
+  if (moving) {
+    own.position.x = Math.max(own.radius, Math.min(snapshot.arenaWidth - own.radius, own.position.x + input.x / magnitude * speed * dt));
+    own.position.y = Math.max(own.radius, Math.min(snapshot.arenaHeight - own.radius, own.position.y + input.y / magnitude * speed * dt));
+  }
+  own.shieldActive = now < (own.shieldUntil || 0);
+  own.magnetActive = now < (own.magnetUntil || 0);
+
+  for (const bot of snapshot.players.filter(player => player.id !== playerId && player.alive)) {
+    if (now > bot.turnAt) { bot.angle += (Math.random() - .5) * 1.7; bot.turnAt = now + 700 + Math.random() * 1700; }
+    const botSpeed = 105 / Math.max(1, bot.radius / 24);
+    bot.position.x += Math.cos(bot.angle) * botSpeed * dt; bot.position.y += Math.sin(bot.angle) * botSpeed * dt;
+    if (bot.position.x < bot.radius || bot.position.x > snapshot.arenaWidth - bot.radius) { bot.angle = Math.PI - bot.angle; bot.position.x = Math.max(bot.radius, Math.min(snapshot.arenaWidth - bot.radius, bot.position.x)); }
+    if (bot.position.y < bot.radius || bot.position.y > snapshot.arenaHeight - bot.radius) { bot.angle = -bot.angle; bot.position.y = Math.max(bot.radius, Math.min(snapshot.arenaHeight - bot.radius, bot.position.y)); }
+  }
+
+  for (const player of snapshot.players.filter(candidate => candidate.alive)) {
+    for (let index = snapshot.energy.length - 1; index >= 0; index--) {
+      const orb = snapshot.energy[index];
+      if (Math.hypot(player.position.x - orb.position.x, player.position.y - orb.position.y) > player.radius + (orb.kind === 'core' ? 12 : 7)) continue;
+      const value = ({ common: 2, rare: 5, epic: 10, core: 24 })[orb.kind] || 2;
+      player.score += value; player.radius = 22 + Math.sqrt(player.score) * 1.22;
+      snapshot.energy[index] = offlineOrb(index);
+    }
+  }
+
+  const alive = snapshot.players.filter(player => player.alive);
+  for (let left = 0; left < alive.length; left++) for (let right = left + 1; right < alive.length; right++) {
+    const a = alive[left], b = alive[right], distance = Math.hypot(a.position.x - b.position.x, a.position.y - b.position.y);
+    const larger = a.radius >= b.radius ? a : b, smaller = larger === a ? b : a;
+    if (distance > larger.radius || larger.radius < smaller.radius * 1.08 || smaller.shieldActive) continue;
+    smaller.alive = false; larger.kills += 1; larger.score += Math.max(20, Math.round(smaller.score * .7)); larger.radius = 22 + Math.sqrt(larger.score) * 1.22;
+    if (smaller.id === playerId) {
+      clearInterval(localArenaTimer);
+      updateHud();
+      showGameOver(snapshot.players.slice().sort((x, y) => y.score - x.score), smaller);
+      claimReward({ offline: true, score: smaller.score, kills: smaller.kills });
+    }
+  }
+  updateHud();
 }
 
 function pointInput(clientX, clientY) {
@@ -98,9 +191,10 @@ function showGameOver(players, own) {
 }
 async function claimReward(message) {
   try {
-    const response = await fetch(window.SwarmRuntime.apiUrl('/api/v1/rewards/match'), {
+    const payload = message.offline ? { score: message.score, kills: message.kills, rank: 1 } : { resultToken: message.resultToken };
+    const response = await window.SwarmRuntime.request('/api/v1/rewards/match', {
       method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ resultToken: message.resultToken })
+      body: JSON.stringify(payload)
     });
     const reward = await response.json();
     document.querySelector('#final-coins').textContent = response.ok ? `+${reward.coins}` : '+0';
@@ -258,4 +352,4 @@ function drawBoundary(screen, zoom) {
 
 connect().catch(() => { connectionNode.textContent = 'SUNUCU YOK'; reconnectTimer = setTimeout(connect, 1500); });
 render();
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+if (!window.SwarmRuntime.native && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});

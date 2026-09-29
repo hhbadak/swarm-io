@@ -3,7 +3,7 @@ const headers = () => ({ authorization: `Bearer ${token}` });
 const toastNode = document.querySelector('#portal-toast');
 
 async function api(path, options = {}) {
-  const response = await fetch(window.SwarmRuntime.apiUrl(path), options);
+  const response = await window.SwarmRuntime.request(path, options);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.message || data.error || 'İşlem başarısız.');
   return data;
@@ -54,4 +54,4 @@ async function load() {
   } catch { sessionStorage.removeItem('swarm.accessToken'); location.replace(window.SwarmRuntime.homeUrl); }
 }
 load();
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+if (!window.SwarmRuntime.native && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
