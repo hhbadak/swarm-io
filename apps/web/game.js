@@ -14,9 +14,12 @@ let reconnectTimer;
 let lastOwnPlayer;
 let localMode = false;
 let localDashUntil = 0;
+let localDashDirection = { x: 0, y: -1 };
+let lastMovementInput = { x: 0, y: -1 };
 let localArenaTimer;
 let boundaryPenaltyReadyAt = 0;
 let boundaryWarningUntil = 0;
+let zeroBoundaryStrikes = 0;
 const trails = new Map();
 const visualRadii = new Map();
 const BASE_RADIUS = 22;
@@ -56,9 +59,11 @@ async function connect() {
 }
 
 function sendInput(dash = false, ability = null) {
+  const inputLength = Math.hypot(input.x, input.y);
+  if (inputLength > .05) lastMovementInput = { x: input.x / inputLength, y: input.y / inputLength };
   if (localMode) {
     const own = snapshot.players.find(player => player.id === playerId);
-    if (dash) localDashUntil = performance.now() + 360;
+    if (dash) { localDashDirection = { ...lastMovementInput }; localDashUntil = performance.now() + 360; }
     if (own && ability === 'shield') own.shieldUntil = performance.now() + 3000;
     if (own && ability === 'magnet') own.magnetUntil = performance.now() + 5000;
     return;
@@ -73,7 +78,7 @@ function startLocalArena() {
   const state = window.SwarmOffline?.read?.() ?? { nickname: 'Nova', equippedSkin: 'starter' };
   const skins = ['starter', 'neon', 'hex', 'solar', 'void', 'gold'];
   const names = ['Orion', 'Vega', 'Lyra', 'Atlas', 'Luna', 'Pulsar', 'Astra', 'Comet'];
-  const own = { id: playerId, nickname: state.nickname, skinId: state.equippedSkin, position: { x: 1600, y: 900 }, radius: BASE_RADIUS, score: 0, kills: 0, alive: true };
+  const own = { id: playerId, nickname: state.nickname, skinId: state.equippedSkin, position: { x: 1600, y: 900 }, radius: BASE_RADIUS, score: 0, kills: 0, alive: true, safeUntil: performance.now() + 3000 };
   const bots = names.map((nickname, index) => ({
     id: `offline-bot-${index}`, nickname, skinId: skins[(index + 1) % skins.length],
     position: { x: 250 + Math.random() * 2700, y: 180 + Math.random() * 1440 },
@@ -104,15 +109,17 @@ function offlineOrb(index = 0) {
 function updateLocalArena(dt, now) {
   const own = snapshot.players.find(player => player.id === playerId);
   if (!own?.alive) return;
-  const magnitude = Math.hypot(input.x, input.y) || 1;
-  const moving = Math.hypot(input.x, input.y) > 0;
-  let speed = (now < localDashUntil ? 620 : 245) / Math.max(1, own.radius / 24);
+  const dashActive = now < localDashUntil;
+  const movementInput = Math.hypot(input.x, input.y) > .05 ? input : dashActive ? localDashDirection : input;
+  const magnitude = Math.hypot(movementInput.x, movementInput.y) || 1;
+  const moving = Math.hypot(movementInput.x, movementInput.y) > 0;
+  let speed = (dashActive ? 620 : 245) / Math.max(1, own.radius / 24);
   if (insideZone(own.position, 'speed')) speed *= 1.35;
   let nextX = own.position.x;
   let nextY = own.position.y;
   if (moving) {
-    nextX += input.x / magnitude * speed * dt;
-    nextY += input.y / magnitude * speed * dt;
+    nextX += movementInput.x / magnitude * speed * dt;
+    nextY += movementInput.y / magnitude * speed * dt;
   }
   const gravityZone = snapshot.zones.find(zone => zone.kind === 'gravity');
   if (gravityZone && insideZone(own.position, 'gravity')) {
@@ -130,7 +137,17 @@ function updateLocalArena(dt, now) {
     own.radius = radiusForScore(own.score);
     boundaryPenaltyReadyAt = now + 700;
     boundaryWarningUntil = now + 900;
+    zeroBoundaryStrikes = own.score === 0 ? zeroBoundaryStrikes + 1 : 0;
+    if (zeroBoundaryStrikes >= 3) {
+      own.alive = false;
+      input = { x: 0, y: 0 };
+      clearInterval(localArenaTimer);
+      updateHud();
+      claimReward({ offline: true, score: own.score, kills: own.kills });
+      return;
+    }
   }
+  if (!hitBoundary) zeroBoundaryStrikes = 0;
   own.shieldActive = now < (own.shieldUntil || 0);
   own.magnetActive = now < (own.magnetUntil || 0);
 
@@ -157,6 +174,7 @@ function updateLocalArena(dt, now) {
   const alive = snapshot.players.filter(player => player.alive);
   for (let left = 0; left < alive.length; left++) for (let right = left + 1; right < alive.length; right++) {
     const a = alive[left], b = alive[right], distance = Math.hypot(a.position.x - b.position.x, a.position.y - b.position.y);
+    if ((a.safeUntil || 0) > now || (b.safeUntil || 0) > now) continue;
     const larger = a.radius >= b.radius ? a : b, smaller = larger === a ? b : a;
     if (distance > larger.radius || larger.radius < smaller.radius * 1.025 || smaller.shieldActive) continue;
     smaller.alive = false; larger.kills += 1; larger.score += Math.max(20, Math.round(smaller.score * .7)); larger.radius = radiusForScore(larger.score);
@@ -243,7 +261,7 @@ function updateHud() {
   }
   const boundaryWarning = performance.now() < boundaryWarningUntil;
   eventNode.hidden = !snapshot.event && !boundaryWarning;
-  eventNode.textContent = boundaryWarning ? 'SINIR TEMASI · ENERJİ VE BOYUT AZALIYOR' : snapshot.event?.message ?? '';
+  eventNode.textContent = boundaryWarning ? own?.score === 0 ? '0 ENERJİ · SINIRDAN UZAKLAŞ YOKSA ÖLECEKSİN' : 'SINIR TEMASI · ENERJİ VE BOYUT AZALIYOR' : snapshot.event?.message ?? '';
   leaderboardNode.innerHTML = players.slice(0, 5).map((player, index) => `<li class="${player.id.toLowerCase() === playerId.toLowerCase() ? 'you' : ''}"><b>${index + 1}</b><span>${escapeHtml(player.nickname)}</span><strong>${player.score}</strong></li>`).join('');
 }
 
@@ -265,10 +283,16 @@ async function claimReward(message) {
   } catch { document.querySelector('#final-coins').textContent = '+0'; }
 }
 document.querySelector('#play-again').addEventListener('click', () => location.reload());
-document.querySelector('#dash').addEventListener('click', activateDash);
-document.querySelector('#shield').addEventListener('click', () => activateAbility('shield', 15));
-document.querySelector('#magnet').addEventListener('click', () => activateAbility('magnet', 13));
-document.querySelectorAll('.ability-bar button').forEach(button => button.addEventListener('pointerdown', event => event.stopPropagation()));
+function bindAbilityButton(selector, action) {
+  document.querySelector(selector).addEventListener('pointerdown', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    action();
+  });
+}
+bindAbilityButton('#dash', activateDash);
+bindAbilityButton('#shield', () => activateAbility('shield', 15));
+bindAbilityButton('#magnet', () => activateAbility('magnet', 13));
 function activateDash() {
   const button = document.querySelector('#dash');
   if (button.disabled) return;

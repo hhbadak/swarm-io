@@ -13,12 +13,15 @@ public sealed class ArenaSimulation
     private readonly HashSet<Guid> _botIds = new();
     private readonly Dictionary<Guid, long> _dashUntilTick = new();
     private readonly Dictionary<Guid, long> _dashReadyTick = new();
+    private readonly Dictionary<Guid, Vector2> _dashDirection = new();
+    private readonly Dictionary<Guid, Vector2> _lastMovementInput = new();
     private readonly Dictionary<Guid, long> _invulnerableUntilTick = new();
     private readonly Dictionary<Guid, long> _shieldUntilTick = new();
     private readonly Dictionary<Guid, long> _shieldReadyTick = new();
     private readonly Dictionary<Guid, long> _magnetUntilTick = new();
     private readonly Dictionary<Guid, long> _magnetReadyTick = new();
     private readonly Dictionary<Guid, long> _boundaryPenaltyReadyTick = new();
+    private readonly Dictionary<Guid, int> _zeroBoundaryHits = new();
     private readonly ArenaZone[] _zones =
     {
         new("speed-north", "speed", new Vector2(800, 430), 240),
@@ -64,14 +67,19 @@ public sealed class ArenaSimulation
         {
             _players.Remove(id);
             _invulnerableUntilTick.Remove(id);
+            _dashDirection.Remove(id);
+            _lastMovementInput.Remove(id);
             _boundaryPenaltyReadyTick.Remove(id);
+            _zeroBoundaryHits.Remove(id);
         }
     }
 
     public bool SetInput(Guid id, Vector2 input)
     {
         if (!_players.TryGetValue(id, out var player)) return false;
-        _players[id] = player with { Input = input.Normalized };
+        var normalized = input.Normalized;
+        if (normalized.Length > 0.0001f) _lastMovementInput[id] = normalized;
+        _players[id] = player with { Input = normalized };
         return true;
     }
 
@@ -79,6 +87,9 @@ public sealed class ArenaSimulation
     {
         if (!_players.TryGetValue(id, out var player) || !player.Alive) return false;
         if (_dashReadyTick.TryGetValue(id, out var readyAt) && _tick < readyAt) return false;
+        _dashDirection[id] = player.Input.Length > 0.0001f
+            ? player.Input
+            : _lastMovementInput.GetValueOrDefault(id, new Vector2(0, -1));
         _dashUntilTick[id] = _tick + 6;
         _dashReadyTick[id] = _tick + 80;
         return true;
@@ -113,9 +124,13 @@ public sealed class ArenaSimulation
             var player = pair.Value;
             if (!player.Alive) continue;
             var speed = MathF.Max(125, BaseSpeed - (player.Radius - 18) * 2.2f);
-            if (_dashUntilTick.TryGetValue(player.Id, out var dashUntil) && _tick < dashUntil) speed *= 1.85f;
+            var dashActive = _dashUntilTick.TryGetValue(player.Id, out var dashUntil) && _tick < dashUntil;
+            if (dashActive) speed *= 1.85f;
             if (InsideZone(player.Position, "speed")) speed *= 1.3f;
-            var next = player.Position + (player.Input * speed * seconds);
+            var movementInput = player.Input.Length > 0.0001f
+                ? player.Input
+                : dashActive ? _dashDirection.GetValueOrDefault(player.Id, new Vector2(0, -1)) : player.Input;
+            var next = player.Position + (movementInput * speed * seconds);
             if (InsideZone(player.Position, "gravity"))
             {
                 var gravity = _zones.First(zone => zone.Kind == "gravity");
@@ -134,8 +149,19 @@ public sealed class ArenaSimulation
             {
                 var penalty = Math.Min(player.Score, Math.Max(4, (int)Math.Ceiling(player.Score * 0.04)));
                 var reducedScore = Math.Max(0, player.Score - penalty);
-                player = player with { Score = reducedScore, Radius = 18 + MathF.Sqrt(reducedScore) * 0.7f };
+                var zeroHits = reducedScore == 0 ? _zeroBoundaryHits.GetValueOrDefault(player.Id) + 1 : 0;
+                _zeroBoundaryHits[player.Id] = zeroHits;
+                player = player with { Score = reducedScore, Radius = 18 + MathF.Sqrt(reducedScore) * 0.7f, Alive = zeroHits < 3 };
                 _boundaryPenaltyReadyTick[player.Id] = _tick + 14;
+            }
+            else if (!hitBoundary)
+            {
+                _zeroBoundaryHits[player.Id] = 0;
+            }
+            if (!player.Alive)
+            {
+                _players[pair.Key] = player with { Input = new Vector2(0, 0) };
+                continue;
             }
             var shieldActive = _shieldUntilTick.TryGetValue(player.Id, out var shieldUntil) && _tick < shieldUntil;
             var magnetActive = _magnetUntilTick.TryGetValue(player.Id, out var magnetUntil) && _tick < magnetUntil;

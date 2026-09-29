@@ -5,6 +5,7 @@ var tests = new (string Name, Action Run)[]
 {
     ("Token round-trip", TokenRoundTrip), ("Expired token rejected", ExpiredTokenRejected),
     ("Movement clamped", MovementClamped), ("Input normalized", InputNormalized), ("Dash accelerates", DashAccelerates),
+    ("Stationary dash uses last direction", StationaryDashUsesLastDirection), ("Zero energy boundary contact kills", ZeroEnergyBoundaryContactKills),
     ("Shield activates and cools down", ShieldActivates), ("Magnet activates", MagnetActivates),
     ("Arena has zones and rarity", ArenaHasProductSystems), ("Reconnect preserves player", ReconnectPreservesPlayer)
 };
@@ -61,6 +62,35 @@ static void DashAccelerates()
     boosted.Step(TimeSpan.FromMilliseconds(50));
     var boostedDistance = boosted.Snapshot().Players.Single(x => x.Id == id).Position.X - boostedPlayer.Position.X;
     Assert(boostedDistance > normalDistance, "Dash must move farther than normal movement.");
+}
+static void StationaryDashUsesLastDirection()
+{
+    var simulation = new ArenaSimulation(43);
+    var player = simulation.AddPlayer(Guid.NewGuid(), "Nova");
+    simulation.SetInput(player.Id, new Vector2(1, 0));
+    simulation.SetInput(player.Id, new Vector2(0, 0));
+    Assert(simulation.RequestDash(player.Id), "Dash should activate while stationary.");
+    simulation.Step(TimeSpan.FromMilliseconds(50));
+    var moved = simulation.Snapshot().Players.Single(x => x.Id == player.Id);
+    Assert(moved.Position.X > player.Position.X, "Stationary dash must use the last movement direction.");
+}
+static void ZeroEnergyBoundaryContactKills()
+{
+    var simulation = new ArenaSimulation(44);
+    var player = simulation.AddPlayer(Guid.NewGuid(), "Nova");
+    var distances = new[] { player.Position.X, ArenaSimulation.ArenaWidth - player.Position.X, player.Position.Y, ArenaSimulation.ArenaHeight - player.Position.Y };
+    var direction = Array.IndexOf(distances, distances.Min()) switch
+    {
+        0 => new Vector2(-1, 0),
+        1 => new Vector2(1, 0),
+        2 => new Vector2(0, -1),
+        _ => new Vector2(0, 1)
+    };
+    simulation.SetInput(player.Id, direction);
+    for (var i = 0; i < 240 && simulation.Snapshot().Players.Single(x => x.Id == player.Id).Alive; i++)
+        simulation.Step(TimeSpan.FromMilliseconds(100));
+    var finished = simulation.Snapshot().Players.Single(x => x.Id == player.Id);
+    Assert(!finished.Alive && finished.Score == 0, "A zero-energy player who stays on the boundary must die.");
 }
 static void ShieldActivates()
 {

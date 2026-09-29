@@ -6,3 +6,5 @@
   .portal-shell{padding-right:max(11px,var(--safe-right));padding-bottom:calc(var(--mobile-nav-height) + var(--safe-bottom) + 18px);padding-left:max(11px,var(--safe-left))}
   #portal-toast{right:max(12px,var(--safe-right));bottom:calc(var(--mobile-nav-height) + var(--safe-bottom) + 16px);left:max(12px,var(--safe-left))}
 }
+.portal-wallet{justify-self:end;display:flex;gap:7px;color:inherit;font-size:inherit}.portal-wallet>span{min-width:84px;display:grid;grid-template-columns:18px 1fr;grid-template-rows:auto auto;align-items:center;padding:6px 9px;border:1px solid var(--line);border-radius:12px;background:#0a102dcc}.portal-wallet i{grid-row:1/3;font-style:normal}.portal-wallet b{font-size:12px;line-height:1}.portal-wallet small{color:var(--muted);font-size:6px;font-weight:900;letter-spacing:.11em}.portal-wallet .coins i,.portal-wallet .coins b{color:var(--gold)}.portal-wallet .gems i,.portal-wallet .gems b{color:var(--violet)}
+@media(max-width:760px){.portal-wallet{gap:4px}.portal-wallet>span{min-width:61px;padding:5px 6px;grid-template-columns:14px 1fr}.portal-wallet i{font-size:11px}.portal-wallet b{font-size:10px}.portal-wallet small{font-size:5px}}

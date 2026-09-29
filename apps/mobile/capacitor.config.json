@@ -7,6 +7,6 @@
     "contentInset": "automatic",
     "preferredContentMode": "mobile",
     "allowsLinkPreview": false,
-    "scrollEnabled": false
+    "scrollEnabled": true
   }
 }

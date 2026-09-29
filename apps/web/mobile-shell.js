@@ -14,6 +14,7 @@
   }
 
   const pathname = location.pathname.toLowerCase();
+  const isLegalPage = pathname.endsWith('/privacy.html') || pathname.endsWith('/terms.html') || pathname.endsWith('/support.html');
   const requestedView = new URLSearchParams(location.search).get('view');
   let active = pathname.endsWith('/game.html') ? 'play' : pathname.endsWith('/portal.html') ? 'progress' : requestedView === 'collection' || requestedView === 'store' ? requestedView : 'play';
 
@@ -21,7 +22,7 @@
   nav.className = 'mobile-bottom-nav';
   nav.setAttribute('aria-label', 'Uygulama menüsü');
   nav.innerHTML = `
-    <a data-tab="play" href="${localPage('./game.html')}"><span>▶</span>OYNA</a>
+    <a data-tab="play" href="${localPage(isLegalPage ? './index.html' : './game.html')}"><span>${isLegalPage ? '←' : '▶'}</span>${isLegalPage ? 'ANA MENÜ' : 'OYNA'}</a>
     <a data-tab="collection" href="${localPage('./index.html?view=collection')}"><span>◉</span>KOLEKSİYON</a>
     <a data-tab="store" href="${localPage('./index.html?view=store')}"><span>✦</span>MAĞAZA</a>
     <a data-tab="progress" href="${localPage('./portal.html')}"><span>◆</span>İLERLEME</a>`;
@@ -35,4 +36,3 @@
   setActive(active);
   window.SwarmMobileNav = { setActive };
 })();
-

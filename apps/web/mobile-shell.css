@@ -20,6 +20,7 @@ body {
 
 @media (max-width: 760px) {
   body:not(.game-page) { padding-bottom: calc(var(--mobile-nav-height) + var(--safe-bottom) + 12px); }
+  .game-page .mobile-bottom-nav { display: none !important; }
   .native-shell .legal-shell { padding-top: calc(32px + var(--safe-top)); }
 
   .mobile-bottom-nav {

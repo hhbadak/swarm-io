@@ -65,6 +65,8 @@ async function loadInventory() {
 function updateProfile() {
   document.querySelector('#coin-balance').textContent = (profile?.coins ?? 0).toLocaleString('tr-TR');
   document.querySelector('#gem-balance').textContent = (profile?.gems ?? 0).toLocaleString('tr-TR');
+  document.querySelector('#cosmetics-coins').textContent = (profile?.coins ?? 0).toLocaleString('tr-TR');
+  document.querySelector('#cosmetics-gems').textContent = (profile?.gems ?? 0).toLocaleString('tr-TR');
   document.querySelector('#profile-state').textContent = profile ? 'HAZIR' : 'MİSAFİR';
   document.querySelector('#equipped-name').textContent = itemById(equipped)?.name ?? 'Starter Core';
   selectItem(selected);

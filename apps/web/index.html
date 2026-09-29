@@ -50,13 +50,16 @@
       </form>
       <div class="selected-loadout"><span>KUŞANILAN</span><b id="equipped-name">Starter Core</b><button id="open-collection" type="button">DEĞİŞTİR</button></div>
       <a class="daily-card" href="/portal.html"><span>GÜNLÜK ÖDÜL</span><b>Bugünkü ödülünü kontrol et →</b><small>Oynadıkça kozmetiklerin çoğunu ücretsiz aç.</small></a>
-      <div class="account-links"><a href="/privacy.html">GİZLİLİK</a><a href="/terms.html">KOŞULLAR</a><a href="/support.html">DESTEK</a><button id="delete-account" type="button">HESABI SİL</button></div>
+      <details class="account-menu">
+        <summary>AYARLAR VE DESTEK</summary>
+        <div class="account-links"><a href="/privacy.html">GİZLİLİK</a><a href="/terms.html">KOŞULLAR</a><a href="/support.html">DESTEK</a><button id="delete-account" type="button">HESABI SİL</button></div>
+      </details>
     </aside>
   </main>
 
   <section id="cosmetics" class="cosmetics-panel" hidden aria-label="Karakter koleksiyonu ve mağaza">
     <div class="cosmetics-shell">
-      <header><div><span id="cosmetics-kicker">KOLEKSİYON</span><h2>Tarzını seç</h2></div><button id="close-cosmetics" class="close-button" type="button" aria-label="Kapat">×</button></header>
+      <header><div><span id="cosmetics-kicker">KOLEKSİYON</span><h2>Tarzını seç</h2></div><div class="cosmetics-balance" aria-label="Bakiyen"><span class="coins"><i>●</i><b id="cosmetics-coins">—</b><small>ALTIN</small></span><span class="gems"><i>◆</i><b id="cosmetics-gems">—</b><small>KRİSTAL</small></span></div><button id="close-cosmetics" class="close-button" type="button" aria-label="Kapat">×</button></header>
       <div class="catalog-tabs" role="tablist"><button class="active" data-filter="all" type="button">TÜMÜ</button><button data-filter="owned" type="button">SAHİP OLDUKLARIM</button><button data-filter="coins" type="button">ALTIN</button><button data-filter="gems" type="button">KRİSTAL</button></div>
       <section class="gem-shop" aria-labelledby="gem-shop-title"><div><span>KRİSTAL KASASI</span><h3 id="gem-shop-title">Kozmetik kredisi</h3></div><div id="gem-offers" class="gem-offers"></div></section>
       <div id="catalog-grid" class="catalog-grid"></div>
