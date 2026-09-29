@@ -5,7 +5,7 @@ workflows:
     max_build_duration: 120
 
     integrations:
-      app_store_connect: swarm-io-app-store
+      app_store_connect: nur_asc_key
 
     environment:
       ios_signing:
