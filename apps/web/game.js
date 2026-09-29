@@ -23,6 +23,18 @@ let zeroBoundaryStrikes = 0;
 const trails = new Map();
 const visualRadii = new Map();
 const BASE_RADIUS = 22;
+const SKIN_TRAITS = {
+  starter: { boundaryPenalty: .8 },
+  neon: { magnetReach: 1.35 },
+  hex: { shieldDuration: 1.4 },
+  solar: { energyValue: 1.15 },
+  void: { speed: 1.1 },
+  gold: { dashSpeed: 1.25 }
+};
+
+function traitFor(player) {
+  return { speed: 1, dashSpeed: 1, shieldDuration: 1, magnetReach: 1, energyValue: 1, boundaryPenalty: 1, ...(SKIN_TRAITS[player?.skinId] || {}) };
+}
 
 function radiusForScore(score) { return BASE_RADIUS + Math.sqrt(Math.max(0, score)) * 1.22; }
 function insideZone(position, kind) {
@@ -64,7 +76,7 @@ function sendInput(dash = false, ability = null) {
   if (localMode) {
     const own = snapshot.players.find(player => player.id === playerId);
     if (dash) { localDashDirection = { ...lastMovementInput }; localDashUntil = performance.now() + 360; }
-    if (own && ability === 'shield') own.shieldUntil = performance.now() + 3000;
+    if (own && ability === 'shield') own.shieldUntil = performance.now() + 3000 * traitFor(own).shieldDuration;
     if (own && ability === 'magnet') own.magnetUntil = performance.now() + 5000;
     return;
   }
@@ -110,10 +122,11 @@ function updateLocalArena(dt, now) {
   const own = snapshot.players.find(player => player.id === playerId);
   if (!own?.alive) return;
   const dashActive = now < localDashUntil;
+  const ownTrait = traitFor(own);
   const movementInput = Math.hypot(input.x, input.y) > .05 ? input : dashActive ? localDashDirection : input;
   const magnitude = Math.hypot(movementInput.x, movementInput.y) || 1;
   const moving = Math.hypot(movementInput.x, movementInput.y) > 0;
-  let speed = (dashActive ? 620 : 245) / Math.max(1, own.radius / 24);
+  let speed = 245 * ownTrait.speed * (dashActive ? (620 / 245) * ownTrait.dashSpeed : 1) / Math.max(1, own.radius / 24);
   if (insideZone(own.position, 'speed')) speed *= 1.35;
   let nextX = own.position.x;
   let nextY = own.position.y;
@@ -132,7 +145,8 @@ function updateLocalArena(dt, now) {
   own.position.x = Math.max(own.radius, Math.min(snapshot.arenaWidth - own.radius, nextX));
   own.position.y = Math.max(own.radius, Math.min(snapshot.arenaHeight - own.radius, nextY));
   if (hitBoundary && now >= boundaryPenaltyReadyAt) {
-    const penalty = Math.min(own.score, Math.max(4, Math.ceil(own.score * .04)));
+    const basePenalty = Math.max(4, Math.ceil(own.score * .04));
+    const penalty = Math.min(own.score, Math.max(1, Math.floor(basePenalty * ownTrait.boundaryPenalty)));
     own.score -= penalty;
     own.radius = radiusForScore(own.score);
     boundaryPenaltyReadyAt = now + 700;
@@ -153,7 +167,7 @@ function updateLocalArena(dt, now) {
 
   for (const bot of snapshot.players.filter(player => player.id !== playerId && player.alive)) {
     if (now > bot.turnAt) { bot.angle += (Math.random() - .5) * 1.7; bot.turnAt = now + 700 + Math.random() * 1700; }
-    const botSpeed = 105 / Math.max(1, bot.radius / 24);
+    const botSpeed = 105 * traitFor(bot).speed / Math.max(1, bot.radius / 24);
     bot.position.x += Math.cos(bot.angle) * botSpeed * dt; bot.position.y += Math.sin(bot.angle) * botSpeed * dt;
     if (bot.position.x < bot.radius || bot.position.x > snapshot.arenaWidth - bot.radius) { bot.angle = Math.PI - bot.angle; bot.position.x = Math.max(bot.radius, Math.min(snapshot.arenaWidth - bot.radius, bot.position.x)); }
     if (bot.position.y < bot.radius || bot.position.y > snapshot.arenaHeight - bot.radius) { bot.angle = -bot.angle; bot.position.y = Math.max(bot.radius, Math.min(snapshot.arenaHeight - bot.radius, bot.position.y)); }
@@ -162,10 +176,12 @@ function updateLocalArena(dt, now) {
   for (const player of snapshot.players.filter(candidate => candidate.alive)) {
     for (let index = snapshot.energy.length - 1; index >= 0; index--) {
       const orb = snapshot.energy[index];
-      const reach = player.radius + (player.magnetActive ? 105 : orb.kind === 'core' ? 12 : 7);
+      const playerTrait = traitFor(player);
+      const reach = player.radius + (player.magnetActive ? 105 * playerTrait.magnetReach : orb.kind === 'core' ? 12 : 7);
       if (Math.hypot(player.position.x - orb.position.x, player.position.y - orb.position.y) > reach) continue;
       const baseValue = ({ common: 2, rare: 5, epic: 10, core: 24 })[orb.kind] || 2;
-      const value = insideZone(player.position, 'gold') ? baseValue * 2 : baseValue;
+      const traitValue = Math.max(baseValue, Math.round(baseValue * playerTrait.energyValue));
+      const value = insideZone(player.position, 'gold') ? traitValue * 2 : traitValue;
       player.score += value; player.radius = radiusForScore(player.score);
       snapshot.energy[index] = offlineOrb(index);
     }

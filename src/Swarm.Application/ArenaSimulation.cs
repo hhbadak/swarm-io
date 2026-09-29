@@ -101,7 +101,8 @@ public sealed class ArenaSimulation
         if (string.Equals(ability, "shield", StringComparison.OrdinalIgnoreCase))
         {
             if (_shieldReadyTick.TryGetValue(id, out var readyAt) && _tick < readyAt) return false;
-            _shieldUntilTick[id] = _tick + 60;
+            var duration = (long)MathF.Round(60 * CharacterTraits.For(player.SkinId).ShieldDurationMultiplier);
+            _shieldUntilTick[id] = _tick + duration;
             _shieldReadyTick[id] = _tick + 300;
             return true;
         }
@@ -123,9 +124,10 @@ public sealed class ArenaSimulation
         {
             var player = pair.Value;
             if (!player.Alive) continue;
-            var speed = MathF.Max(125, BaseSpeed - (player.Radius - 18) * 2.2f);
+            var trait = CharacterTraits.For(player.SkinId);
+            var speed = MathF.Max(125, BaseSpeed - (player.Radius - 18) * 2.2f) * trait.SpeedMultiplier;
             var dashActive = _dashUntilTick.TryGetValue(player.Id, out var dashUntil) && _tick < dashUntil;
-            if (dashActive) speed *= 1.85f;
+            if (dashActive) speed *= 1.85f * trait.DashMultiplier;
             if (InsideZone(player.Position, "speed")) speed *= 1.3f;
             var movementInput = player.Input.Length > 0.0001f
                 ? player.Input
@@ -147,7 +149,9 @@ public sealed class ArenaSimulation
             };
             if (hitBoundary && (!_boundaryPenaltyReadyTick.TryGetValue(player.Id, out var penaltyReadyAt) || _tick >= penaltyReadyAt))
             {
-                var penalty = Math.Min(player.Score, Math.Max(4, (int)Math.Ceiling(player.Score * 0.04)));
+                var basePenalty = Math.Max(4, (int)Math.Ceiling(player.Score * 0.04));
+                var adjustedPenalty = Math.Max(1, (int)MathF.Floor(basePenalty * trait.BoundaryPenaltyMultiplier));
+                var penalty = Math.Min(player.Score, adjustedPenalty);
                 var reducedScore = Math.Max(0, player.Score - penalty);
                 var zeroHits = reducedScore == 0 ? _zeroBoundaryHits.GetValueOrDefault(player.Id) + 1 : 0;
                 _zeroBoundaryHits[player.Id] = zeroHits;
@@ -170,12 +174,13 @@ public sealed class ArenaSimulation
             {
                 var dx = player.Position.X - orb.Position.X;
                 var dy = player.Position.Y - orb.Position.Y;
-                var reach = player.Radius + (magnetActive ? 115 : 8);
+                var reach = player.Radius + (magnetActive ? 115 * trait.MagnetReachMultiplier : 8);
                 if ((dx * dx) + (dy * dy) > reach * reach) continue;
                 _energy.Remove(orb.Id);
                 var zoneMultiplier = InsideZone(player.Position, "gold") ? 2 : 1;
                 var eventMultiplier = ActiveEvent() is not null ? 2 : 1;
-                var nextScore = player.Score + (orb.Value * zoneMultiplier * eventMultiplier);
+                var traitValue = Math.Max(orb.Value, (int)MathF.Round(orb.Value * trait.EnergyValueMultiplier));
+                var nextScore = player.Score + (traitValue * zoneMultiplier * eventMultiplier);
                 player = player with { Score = nextScore, Radius = 18 + MathF.Sqrt(nextScore) * 0.7f };
             }
             _players[pair.Key] = player;

@@ -79,7 +79,7 @@ function selectItem(id) {
   if (!item) return;
   document.querySelector('#selected-name').textContent = item.name;
   document.querySelector('#selected-rarity').textContent = item.rarity.toUpperCase();
-  document.querySelector('#selected-description').textContent = item.description;
+  document.querySelector('#selected-description').textContent = `${item.traitName} · ${item.traitDescription}`;
   document.querySelectorAll('.skin-card').forEach(card => card.classList.toggle('selected', card.dataset.id === id));
 }
 
@@ -100,7 +100,7 @@ function renderCatalog() {
     const isOwned = owned.has(item.id), isEquipped = equipped === item.id;
     return `<article class="skin-card ${selected === item.id ? 'selected' : ''} ${isEquipped ? 'equipped' : ''}" data-id="${item.id}">
       <div class="skin-preview"><canvas width="360" height="220" data-skin="${item.id}"></canvas><span class="skin-state">${isEquipped ? 'KUŞANILDI' : isOwned ? 'SAHİPSİN' : item.rarity.toUpperCase()}</span></div>
-      <div class="skin-info"><div><small>${item.rarity.toUpperCase()}</small><b>${item.name}</b></div><span class="price ${item.currency === 'Gems' ? 'gem' : ''}">${priceLabel(item)}</span><p>${item.description}</p><button type="button" class="${isOwned ? '' : 'buy'}" data-action="${isOwned ? 'equip' : 'buy'}" ${isEquipped ? 'disabled' : ''}>${actionLabel(item)}</button></div>
+      <div class="skin-info"><div><small>${item.rarity.toUpperCase()}</small><b>${item.name}</b></div><span class="price ${item.currency === 'Gems' ? 'gem' : ''}">${priceLabel(item)}</span><p>${item.description}</p><div class="skin-trait"><b>${item.traitName}</b><span>${item.traitDescription}</span></div><button type="button" class="${isOwned ? '' : 'buy'}" data-action="${isOwned ? 'equip' : 'buy'}" ${isEquipped ? 'disabled' : ''}>${actionLabel(item)}</button></div>
     </article>`;
   }).join('');
 }

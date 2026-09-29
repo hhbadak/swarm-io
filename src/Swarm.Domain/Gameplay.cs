@@ -20,6 +20,30 @@ public sealed record ArenaPlayer(
 public sealed record EnergyOrb(Guid Id, Vector2 Position, int Value, string Kind);
 public sealed record ArenaZone(string Id, string Kind, Vector2 Position, float Radius);
 public sealed record ArenaEvent(string Kind, long EndsAtTick, string Message);
+public sealed record CharacterTrait(
+    float SpeedMultiplier = 1,
+    float DashMultiplier = 1,
+    float ShieldDurationMultiplier = 1,
+    float MagnetReachMultiplier = 1,
+    float EnergyValueMultiplier = 1,
+    float BoundaryPenaltyMultiplier = 1);
+
+public static class CharacterTraits
+{
+    private static readonly CharacterTrait Default = new();
+    private static readonly IReadOnlyDictionary<string, CharacterTrait> All = new Dictionary<string, CharacterTrait>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["starter"] = new(BoundaryPenaltyMultiplier: 0.8f),
+        ["neon"] = new(MagnetReachMultiplier: 1.35f),
+        ["hex"] = new(ShieldDurationMultiplier: 1.4f),
+        ["solar"] = new(EnergyValueMultiplier: 1.15f),
+        ["void"] = new(SpeedMultiplier: 1.1f),
+        ["gold"] = new(DashMultiplier: 1.25f)
+    };
+
+    public static CharacterTrait For(string? skinId)
+        => skinId is not null && All.TryGetValue(skinId, out var trait) ? trait : Default;
+}
 public sealed record ArenaSnapshot(
     long Tick,
     IReadOnlyCollection<ArenaPlayer> Players,

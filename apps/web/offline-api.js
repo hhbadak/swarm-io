@@ -1,12 +1,12 @@
 (function () {
   const STATE_KEY = 'swarm.offlineState.v1';
   const catalog = [
-    { id: 'starter', name: 'Starter Core', rarity: 'Ücretsiz', price: 0, currency: 'Coins', description: 'Temiz, dengeli ve herkese açık başlangıç çekirdeği.' },
-    { id: 'neon', name: 'Neon Bloom', rarity: 'Nadir', price: 200, currency: 'Coins', description: 'Mor enerji yaprakları ve canlı çekirdek parıltısı.' },
-    { id: 'hex', name: 'Armored Hex', rarity: 'Nadir', price: 450, currency: 'Coins', description: 'Altıgen zırh plakaları ve güçlü cyan çerçeve.' },
-    { id: 'solar', name: 'Solar Crown', rarity: 'Destansı', price: 900, currency: 'Coins', description: 'Güneş ışınlarıyla çevrili altın enerji kabuğu.' },
-    { id: 'void', name: 'Void Phantom', rarity: 'Destansı', price: 220, currency: 'Gems', description: 'Karanlık çekirdek çevresinde dönen mor halkalar.' },
-    { id: 'gold', name: 'Golden Sovereign', rarity: 'Efsanevi', price: 350, currency: 'Gems', description: 'Beyaz-altın zırh, taç ve kraliyet halkaları.' }
+    { id: 'starter', name: 'Starter Core', rarity: 'Ücretsiz', price: 0, currency: 'Coins', description: 'Temiz ve dengeli başlangıç çekirdeği.', traitName: 'SINIR DİRENCİ', traitDescription: 'Sınır enerji cezası %20 daha az.' },
+    { id: 'neon', name: 'Neon Bloom', rarity: 'Nadir', price: 200, currency: 'Coins', description: 'Mor enerji yaprakları ve canlı çekirdek parıltısı.', traitName: 'GENİŞ ÇEKİM', traitDescription: 'Çekim menzili %35 daha geniş.' },
+    { id: 'hex', name: 'Armored Hex', rarity: 'Nadir', price: 450, currency: 'Coins', description: 'Altıgen zırh plakaları ve güçlü cyan çerçeve.', traitName: 'UZUN KALKAN', traitDescription: 'Kalkan %40 daha uzun sürer.' },
+    { id: 'solar', name: 'Solar Crown', rarity: 'Destansı', price: 900, currency: 'Coins', description: 'Güneş ışınlarıyla çevrili altın enerji kabuğu.', traitName: 'GÜNEŞ HASADI', traitDescription: 'Toplanan enerji %15 daha değerlidir.' },
+    { id: 'void', name: 'Void Phantom', rarity: 'Destansı', price: 220, currency: 'Gems', description: 'Karanlık çekirdek çevresinde dönen mor halkalar.', traitName: 'FANTOM AKIŞ', traitDescription: 'Hareket hızı %10 daha yüksektir.' },
+    { id: 'gold', name: 'Golden Sovereign', rarity: 'Efsanevi', price: 350, currency: 'Gems', description: 'Beyaz-altın zırh, taç ve kraliyet halkaları.', traitName: 'KRALİYET ATILIŞI', traitDescription: 'Atıl gücü %25 daha yüksektir.' }
   ];
   const offers = [
     { id: 'spark', title: 'Kıvılcım Paketi', gems: 80, bonusLabel: '', webPriceLabel: '₺39,99', appleProductId: 'io.swarm.gems.spark', webAvailable: false },

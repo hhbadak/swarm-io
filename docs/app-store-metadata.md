@@ -35,7 +35,7 @@ arena,çok oyunculu,aksiyon,io,büyüme,rekabet,çevrimiçi,oyun,kozmetik
 
 ## App Review notu
 
-Uygulama giriş hesabı gerektirmez; ana ekranda bir takma ad seçilip “Arenaya Gir” düğmesine basılarak misafir profil oluşturulur. Kristal paketleri tüketilebilir uygulama içi satın alımlardır ve yalnızca kozmetik karakter satın almak için kullanılır. Kozmetikler hız, büyüklük, yeme gücü veya çarpışma alanı avantajı sağlamaz. Hesap silme seçeneği ana ekrandaki profil panelinin altındadır.
+Uygulama giriş hesabı gerektirmez; ana ekranda bir takma ad seçilip “Arenaya Gir” düğmesine basılarak misafir profil oluşturulur. Kristal paketleri tüketilebilir uygulama içi satın alımlardır ve karakter satın almak için kullanılır. Her karakter, mağaza kartında açıklanan kendine özgü pasif bir oyun özelliğine sahiptir. Hesap silme seçeneği ana ekrandaki profil panelindeki Ayarlar ve Destek bölümündedir.
 
 ## Uygulama içi satın almalar
 

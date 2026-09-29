@@ -7,6 +7,7 @@ var tests = new (string Name, Action Run)[]
     ("Movement clamped", MovementClamped), ("Input normalized", InputNormalized), ("Dash accelerates", DashAccelerates),
     ("Stationary dash uses last direction", StationaryDashUsesLastDirection), ("Zero energy boundary contact kills", ZeroEnergyBoundaryContactKills),
     ("Shield activates and cools down", ShieldActivates), ("Magnet activates", MagnetActivates),
+    ("Every character has a unique trait", EveryCharacterHasUniqueTrait), ("Character traits affect simulation", CharacterTraitsAffectSimulation),
     ("Arena has zones and rarity", ArenaHasProductSystems), ("Reconnect preserves player", ReconnectPreservesPlayer)
 };
 var failures = 0;
@@ -108,6 +109,43 @@ static void MagnetActivates()
     Assert(simulation.RequestAbility(player.Id, "magnet"), "Magnet should activate when ready.");
     simulation.Step(TimeSpan.FromMilliseconds(50));
     Assert(simulation.Snapshot().Players.Single(x => x.Id == player.Id).MagnetActive, "Magnet state must be in snapshot.");
+}
+static void EveryCharacterHasUniqueTrait()
+{
+    var starter = CharacterTraits.For("starter");
+    var neon = CharacterTraits.For("neon");
+    var hex = CharacterTraits.For("hex");
+    var solar = CharacterTraits.For("solar");
+    var voidTrait = CharacterTraits.For("void");
+    var gold = CharacterTraits.For("gold");
+    Assert(starter.BoundaryPenaltyMultiplier < 1, "Starter must reduce boundary penalties.");
+    Assert(neon.MagnetReachMultiplier > 1, "Neon must increase magnet reach.");
+    Assert(hex.ShieldDurationMultiplier > 1, "Hex must extend shield duration.");
+    Assert(solar.EnergyValueMultiplier > 1, "Solar must increase collected energy value.");
+    Assert(voidTrait.SpeedMultiplier > 1, "Void must increase movement speed.");
+    Assert(gold.DashMultiplier > 1, "Gold must increase dash power.");
+}
+static void CharacterTraitsAffectSimulation()
+{
+    var id = Guid.NewGuid();
+    var starter = new ArenaSimulation(77);
+    var starterPlayer = starter.AddPlayer(id, "Nova", "starter");
+    starter.SetInput(id, new Vector2(1, 0));
+    starter.Step(TimeSpan.FromMilliseconds(50));
+    var starterDistance = starter.Snapshot().Players.Single(x => x.Id == id).Position.X - starterPlayer.Position.X;
+
+    var voidArena = new ArenaSimulation(77);
+    var voidPlayer = voidArena.AddPlayer(id, "Nova", "void");
+    voidArena.SetInput(id, new Vector2(1, 0));
+    voidArena.Step(TimeSpan.FromMilliseconds(50));
+    var voidDistance = voidArena.Snapshot().Players.Single(x => x.Id == id).Position.X - voidPlayer.Position.X;
+    Assert(voidDistance > starterDistance, "Void speed trait must affect movement.");
+
+    var hexArena = new ArenaSimulation(78);
+    var hexPlayer = hexArena.AddPlayer(Guid.NewGuid(), "Nova", "hex");
+    hexArena.RequestAbility(hexPlayer.Id, "shield");
+    for (var i = 0; i < 65; i++) hexArena.Step(TimeSpan.FromMilliseconds(20));
+    Assert(hexArena.Snapshot().Players.Single(x => x.Id == hexPlayer.Id).ShieldActive, "Hex shield trait must outlast the default shield.");
 }
 static void ArenaHasProductSystems()
 {

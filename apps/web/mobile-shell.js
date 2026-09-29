@@ -8,6 +8,11 @@
   document.addEventListener('gestureend', preventZoom, { passive: false });
   document.addEventListener('dblclick', preventZoom, { passive: false });
 
+  const isEditable = target => target instanceof Element && Boolean(target.closest('input,textarea,[contenteditable="true"]'));
+  document.addEventListener('selectstart', event => { if (!isEditable(event.target)) event.preventDefault(); });
+  document.addEventListener('contextmenu', event => { if (!isEditable(event.target)) event.preventDefault(); });
+  document.addEventListener('dragstart', event => { if (!isEditable(event.target)) event.preventDefault(); });
+
   function localPage(path) {
     if (window.SwarmRuntime?.native) return window.SwarmRuntime.page(path);
     return path.replace(/^\.\//, '/');

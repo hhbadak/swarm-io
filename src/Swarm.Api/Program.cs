@@ -696,7 +696,9 @@ public sealed record PlayerResponse(Guid Id, string Nickname, long Coins, long G
 public sealed record MatchRewardRequest(string ResultToken);
 public sealed record CosmeticActionRequest(string ItemId);
 public sealed record InventoryItemResponse(string ItemId, bool IsEquipped, DateTimeOffset AcquiredAt);
-public sealed record CosmeticItemResponse(string Id, string Name, string Rarity, long Price, string Currency, string Description);
+public sealed record CosmeticItemResponse(
+    string Id, string Name, string Rarity, long Price, string Currency, string Description,
+    string TraitName, string TraitDescription);
 public sealed record PlayerReportRequest(string ReportedNickname, string Reason, string? ReportedPlayerId, string? Details);
 public sealed record AnalyticsEventRequest(string Name, Dictionary<string, string>? Properties);
 public sealed record RemoteConfigRequest(string Value);
@@ -711,12 +713,12 @@ static class CosmeticCatalog
 {
     public static readonly CosmeticItemResponse[] All =
     [
-        new("starter", "Starter Core", "Ücretsiz", 0, "Coins", "Temiz, dengeli ve herkese açık başlangıç çekirdeği."),
-        new("neon", "Neon Bloom", "Nadir", 200, "Coins", "Mor enerji yaprakları ve canlı çekirdek parıltısı."),
-        new("hex", "Armored Hex", "Nadir", 450, "Coins", "Altıgen zırh plakaları ve güçlü cyan çerçeve."),
-        new("solar", "Solar Crown", "Destansı", 900, "Coins", "Güneş ışınlarıyla çevrili altın enerji kabuğu."),
-        new("void", "Void Phantom", "Destansı", 220, "Gems", "Karanlık çekirdek çevresinde dönen mor halkalar."),
-        new("gold", "Golden Sovereign", "Efsanevi", 350, "Gems", "Beyaz-altın zırh, taç ve kraliyet halkaları.")
+        new("starter", "Starter Core", "Ücretsiz", 0, "Coins", "Temiz ve dengeli başlangıç çekirdeği.", "SINIR DİRENCİ", "Sınır enerji cezası %20 daha az."),
+        new("neon", "Neon Bloom", "Nadir", 200, "Coins", "Mor enerji yaprakları ve canlı çekirdek parıltısı.", "GENİŞ ÇEKİM", "Çekim menzili %35 daha geniş."),
+        new("hex", "Armored Hex", "Nadir", 450, "Coins", "Altıgen zırh plakaları ve güçlü cyan çerçeve.", "UZUN KALKAN", "Kalkan %40 daha uzun sürer."),
+        new("solar", "Solar Crown", "Destansı", 900, "Coins", "Güneş ışınlarıyla çevrili altın enerji kabuğu.", "GÜNEŞ HASADI", "Toplanan enerji %15 daha değerlidir."),
+        new("void", "Void Phantom", "Destansı", 220, "Gems", "Karanlık çekirdek çevresinde dönen mor halkalar.", "FANTOM AKIŞ", "Hareket hızı %10 daha yüksektir."),
+        new("gold", "Golden Sovereign", "Efsanevi", 350, "Gems", "Beyaz-altın zırh, taç ve kraliyet halkaları.", "KRALİYET ATILIŞI", "Atıl gücü %25 daha yüksektir.")
     ];
 
     public static CosmeticItemResponse? Find(string? itemId)
