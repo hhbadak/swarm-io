@@ -17,7 +17,7 @@
   <canvas id="arena"></canvas>
   <header class="hud">
     <span class="game-brand">SWARM.IO</span>
-    <div class="match-state"><span id="connection">BAĞLANIYOR</span><span id="danger">ENERJİ TOPLA · BÜYÜ · AVCILA</span></div>
+    <div class="match-state"><span id="connection">BAĞLANIYOR</span><strong id="match-clock">05:00</strong><span id="danger">ENERJİ TOPLA · BÜYÜ · AVCILA</span></div>
     <div class="hud-score"><strong id="score">0</strong><span>ENERJİ · <b id="rank">#—</b> · <b id="size">1.0×</b></span></div>
   </header>
   <div id="event-banner" class="event-banner" hidden></div>
@@ -31,7 +31,7 @@
   </div>
   <div class="instructions">Fare/dokunma ile yön ver · WASD/yön tuşları · SPACE atıl · Q kalkan · E çekim</div>
   <section id="game-over" class="game-over" hidden>
-    <div class="result-card"><p>RUN OVER</p><h1 id="final-rank">#—</h1><div class="result-stats"><span><b id="final-score">0</b> SKOR</span><span><b id="final-kills">0</b> AVLAMA</span><span class="reward"><b id="final-coins">0</b> ALTIN</span></div><button id="play-again" type="button">TEKRAR OYNA</button><a href="/">ANA MENÜ</a></div>
+    <div class="result-card"><p id="result-label">ELENDİN</p><h1 id="final-rank">#—</h1><div class="result-stats"><span><b id="final-score">0</b> SKOR</span><span><b id="final-kills">0</b> AVLAMA</span><span class="reward"><b id="final-coins">0</b> ALTIN</span></div><button id="play-again" type="button">TEKRAR OYNA</button><a href="/">ANA MENÜ</a></div>
   </section>
   <script src="/character-renderer.js" defer></script>
   <script src="/game.js" defer></script>

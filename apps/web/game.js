@@ -5,6 +5,7 @@ const scoreNode = document.querySelector('#score');
 const leaderboardNode = document.querySelector('#leaderboard ol');
 const gameOverNode = document.querySelector('#game-over');
 const eventNode = document.querySelector('#event-banner');
+const clockNode = document.querySelector('#match-clock');
 const playerId = window.SwarmRuntime.session.get('swarm.playerId');
 const accessToken = window.SwarmRuntime.session.get('swarm.accessToken');
 const matchParams = new URLSearchParams(location.search);
@@ -23,6 +24,9 @@ let localArenaTimer;
 let boundaryPenaltyReadyAt = 0;
 let boundaryWarningUntil = 0;
 let zeroBoundaryStrikes = 0;
+let localMatchEndsAt = 0;
+let localResultSent = false;
+const MATCH_DURATION_SECONDS = 5 * 60;
 const trails = new Map();
 const visualRadii = new Map();
 const BASE_RADIUS = 22;
@@ -74,7 +78,7 @@ async function connect() {
   socket.addEventListener('message', event => {
     const message = JSON.parse(event.data);
     if (message.type === 'snapshot') { snapshot = message; updateHud(); }
-    if (message.type === 'gameOver') claimReward(message);
+    if (message.type === 'gameOver') handleGameOver(message);
   });
 }
 
@@ -94,6 +98,7 @@ function sendInput(dash = false, ability = null) {
 function startLocalArena() {
   if (localMode) return;
   localMode = true;
+  localMatchEndsAt = performance.now() + MATCH_DURATION_SECONDS * 1000;
   connectionNode.textContent = 'CİHAZ İÇİ TEST';
   const state = window.SwarmOffline?.read?.() ?? { nickname: 'Nova', equippedSkin: 'starter' };
   const skins = ['starter', 'neon', 'hex', 'solar', 'void', 'gold'];
@@ -107,6 +112,7 @@ function startLocalArena() {
   }));
   snapshot = {
     players: [own, ...bots], arenaWidth: 3200, arenaHeight: 1800,
+    matchDurationSeconds: MATCH_DURATION_SECONDS, remainingSeconds: MATCH_DURATION_SECONDS, matchFinished: false,
     zones: [
       { kind: 'speed', position: { x: 700, y: 450 }, radius: 210 },
       { kind: 'gold', position: { x: 2500, y: 1250 }, radius: 230 },
@@ -129,12 +135,14 @@ function offlineOrb(index = 0) {
 function updateLocalArena(dt, now) {
   const own = snapshot.players.find(player => player.id === playerId);
   if (!own?.alive) return;
+  snapshot.remainingSeconds = Math.max(0, Math.ceil((localMatchEndsAt - now) / 1000));
+  if (snapshot.remainingSeconds <= 0) { finishLocalArena(own); return; }
   const dashActive = now < localDashUntil;
   const ownTrait = traitFor(own);
   const movementInput = Math.hypot(input.x, input.y) > .05 ? input : dashActive ? localDashDirection : input;
   const magnitude = Math.hypot(movementInput.x, movementInput.y) || 1;
   const moving = Math.hypot(movementInput.x, movementInput.y) > 0;
-  let speed = 245 * ownTrait.speed * (dashActive ? (620 / 245) * ownTrait.dashSpeed : 1) / Math.max(1, own.radius / 24);
+  let speed = movementSpeedFor(own.radius, ownTrait.speed) * (dashActive ? 2.45 * ownTrait.dashSpeed : 1);
   if (insideZone(own.position, 'speed')) speed *= 1.35;
   let nextX = own.position.x;
   let nextY = own.position.y;
@@ -175,7 +183,7 @@ function updateLocalArena(dt, now) {
 
   for (const bot of snapshot.players.filter(player => player.id !== playerId && player.alive)) {
     if (now > bot.turnAt) { bot.angle += (Math.random() - .5) * 1.7; bot.turnAt = now + 700 + Math.random() * 1700; }
-    const botSpeed = 105 * traitFor(bot).speed / Math.max(1, bot.radius / 24);
+    const botSpeed = movementSpeedFor(bot.radius, traitFor(bot).speed) * .56;
     bot.position.x += Math.cos(bot.angle) * botSpeed * dt; bot.position.y += Math.sin(bot.angle) * botSpeed * dt;
     if (bot.position.x < bot.radius || bot.position.x > snapshot.arenaWidth - bot.radius) { bot.angle = Math.PI - bot.angle; bot.position.x = Math.max(bot.radius, Math.min(snapshot.arenaWidth - bot.radius, bot.position.x)); }
     if (bot.position.y < bot.radius || bot.position.y > snapshot.arenaHeight - bot.radius) { bot.angle = -bot.angle; bot.position.y = Math.max(bot.radius, Math.min(snapshot.arenaHeight - bot.radius, bot.position.y)); }
@@ -287,13 +295,44 @@ function updateHud() {
     const roomLabel = snapshot.roomCode || 'GENEL';
     connectionNode.textContent = `CANLI · ${roomLabel} · ${snapshot.realPlayers}/${snapshot.capacity}`;
   }
+  updateClock(snapshot.remainingSeconds ?? MATCH_DURATION_SECONDS);
   const boundaryWarning = performance.now() < boundaryWarningUntil;
   eventNode.hidden = !snapshot.event && !boundaryWarning;
   eventNode.textContent = boundaryWarning ? own?.score === 0 ? '0 ENERJİ · SINIRDAN UZAKLAŞ YOKSA ÖLECEKSİN' : 'SINIR TEMASI · ENERJİ VE BOYUT AZALIYOR' : snapshot.event?.message ?? '';
   leaderboardNode.innerHTML = players.slice(0, 5).map((player, index) => `<li class="${player.id.toLowerCase() === playerId.toLowerCase() ? 'you' : ''}"><b>${index + 1}</b><span>${escapeHtml(player.nickname)} <em class="player-kind ${player.isBot ? 'bot' : 'human'}">${player.isBot ? 'BOT' : '●'}</em></span><strong>${player.score}</strong></li>`).join('');
 }
 
-function showGameOver(players, own) {
+function movementSpeedFor(radius, traitMultiplier = 1) {
+  const sizeMultiplier = Math.max(1, radius / 22);
+  return Math.max(72, 245 / Math.pow(sizeMultiplier, .72)) * traitMultiplier;
+}
+
+function updateClock(seconds) {
+  const remaining = Math.max(0, Math.ceil(Number(seconds) || 0));
+  clockNode.textContent = `${String(Math.floor(remaining / 60)).padStart(2, '0')}:${String(remaining % 60).padStart(2, '0')}`;
+  clockNode.classList.toggle('ending', remaining <= 30);
+}
+
+function finishLocalArena(own) {
+  if (localResultSent) return;
+  localResultSent = true;
+  snapshot.matchFinished = true;
+  input = { x: 0, y: 0 };
+  clearInterval(localArenaTimer);
+  const players = snapshot.players.slice().sort((a, b) => b.score - a.score);
+  showGameOver(players, own, 'timeout');
+  claimReward({ offline: true, score: own.score, kills: own.kills, rank: players.findIndex(player => player.id === own.id) + 1 });
+}
+
+function handleGameOver(message) {
+  const players = (snapshot.players ?? []).slice().sort((a, b) => b.score - a.score);
+  const own = players.find(player => player.id.toLowerCase() === playerId.toLowerCase()) ?? lastOwnPlayer;
+  if (own) showGameOver(players, own, message.reason);
+  claimReward(message);
+}
+
+function showGameOver(players, own, reason = 'eliminated') {
+  document.querySelector('#result-label').textContent = reason === 'timeout' ? 'SÜRE DOLDU' : 'ELENDİN';
   document.querySelector('#final-rank').textContent = `#${players.findIndex(player => player.id === own.id) + 1}`;
   document.querySelector('#final-score').textContent = own.score;
   document.querySelector('#final-kills').textContent = own.kills;
@@ -301,7 +340,7 @@ function showGameOver(players, own) {
 }
 async function claimReward(message) {
   try {
-    const payload = message.offline ? { score: message.score, kills: message.kills, rank: 1 } : { resultToken: message.resultToken };
+    const payload = message.offline ? { score: message.score, kills: message.kills, rank: message.rank || 1 } : { resultToken: message.resultToken };
     const response = await window.SwarmRuntime.request('/api/v1/rewards/match', {
       method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${accessToken}` },
       body: JSON.stringify(payload)

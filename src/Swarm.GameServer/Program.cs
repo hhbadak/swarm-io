@@ -103,6 +103,7 @@ public sealed class ArenaRoomManager
             ArenaRoom room;
             if (_playerRooms.TryGetValue(playerId, out var previousRoomId)
                 && _rooms.TryGetValue(previousRoomId, out var previousRoom)
+                && previousRoom.CanAccept(playerId)
                 && (isPrivate
                     ? previousRoom.IsPrivate && string.Equals(previousRoom.Code, normalizedCode, StringComparison.OrdinalIgnoreCase)
                     : !previousRoom.IsPrivate))
@@ -112,7 +113,7 @@ public sealed class ArenaRoomManager
             else if (isPrivate)
             {
                 var roomId = $"private:{normalizedCode}";
-                if (!_rooms.TryGetValue(roomId, out room!))
+                if (!_rooms.TryGetValue(roomId, out room!) || room.IsFinished)
                 {
                     room = new ArenaRoom(roomId, normalizedCode!, true, _tokens);
                     _rooms[roomId] = room;
@@ -166,12 +167,14 @@ public sealed class ArenaRoomManager
 
 public sealed class ArenaRoom
 {
+    public const int MatchDurationSeconds = 5 * 60;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly object _gate = new();
     private readonly ArenaSimulation _simulation = new();
     private readonly ConcurrentDictionary<Guid, ArenaConnection> _connections = new();
     private readonly ConcurrentDictionary<Guid, DateTimeOffset> _disconnectDeadlines = new();
     private readonly SwarmTokenService _tokens;
+    private readonly DateTimeOffset _startedAt = DateTimeOffset.UtcNow;
     private DateTimeOffset _lastActivity = DateTimeOffset.UtcNow;
     public ArenaRoom(string id, string? code, bool isPrivate, SwarmTokenService tokens)
     { Id = id; Code = code; IsPrivate = isPrivate; _tokens = tokens; }
@@ -179,10 +182,12 @@ public sealed class ArenaRoom
     public string? Code { get; }
     public bool IsPrivate { get; }
     public int PlayerCount => _connections.Count;
+    public bool IsFinished => DateTimeOffset.UtcNow >= _startedAt.AddSeconds(MatchDurationSeconds);
+    public int RemainingSeconds => Math.Max(0, (int)Math.Ceiling((_startedAt.AddSeconds(MatchDurationSeconds) - DateTimeOffset.UtcNow).TotalSeconds));
     public bool CanRetire => PlayerCount == 0 && DateTimeOffset.UtcNow - _lastActivity > TimeSpan.FromMinutes(2);
     public bool CanAccept(Guid playerId)
     {
-        lock (_gate) return _simulation.Snapshot().Players.Any(player => player.Id == playerId) || _simulation.HasCapacity;
+        lock (_gate) return !IsFinished && (_simulation.Snapshot().Players.Any(player => player.Id == playerId) || _simulation.HasCapacity);
     }
 
     public bool TryConnect(Guid playerId, string nickname, string skinId, WebSocket socket, out ArenaConnection? connection)
@@ -190,6 +195,7 @@ public sealed class ArenaRoom
         connection = null;
         lock (_gate)
         {
+            if (IsFinished) return false;
             if (!_simulation.Snapshot().Players.Any(player => player.Id == playerId) && !_simulation.HasCapacity) return false;
             _simulation.AddPlayer(playerId, nickname, skinId);
         }
@@ -224,7 +230,8 @@ public sealed class ArenaRoom
             }
         }
         ArenaSnapshot snapshot;
-        lock (_gate) snapshot = _simulation.Step(elapsed);
+        lock (_gate) snapshot = IsFinished ? _simulation.Snapshot() : _simulation.Step(elapsed);
+        var matchFinished = IsFinished;
         var payload = JsonSerializer.SerializeToUtf8Bytes(new
         {
             type = "snapshot",
@@ -234,6 +241,9 @@ public sealed class ArenaRoom
             capacity = ArenaSimulation.MaxPlayers,
             realPlayers = snapshot.Players.Count(player => !player.IsBot),
             bots = snapshot.Players.Count(player => player.IsBot),
+            matchDurationSeconds = MatchDurationSeconds,
+            remainingSeconds = RemainingSeconds,
+            matchFinished,
             arenaWidth = ArenaSimulation.ArenaWidth,
             arenaHeight = ArenaSimulation.ArenaHeight,
             snapshot.Tick,
@@ -247,14 +257,15 @@ public sealed class ArenaRoom
             await TrySend(connection, payload, cancellationToken, waitForLock: false);
 
             var player = snapshot.Players.FirstOrDefault(candidate => candidate.Id == connection.PlayerId);
-            if (player is not null && !player.Alive && !connection.ResultSent)
+            if (player is not null && (!player.Alive || matchFinished) && !connection.ResultSent)
             {
                 var coins = 10 + (player.Score / 5) + (player.Kills * 25);
                 var rank = snapshot.Players.Count(candidate => candidate.Alive && candidate.Score > player.Score) + 1;
                 var durationSeconds = Math.Max(1, (int)(DateTimeOffset.UtcNow - connection.ConnectedAt).TotalSeconds);
                 var nonce = Guid.NewGuid().ToString("N");
                 var resultToken = _tokens.Issue(player.Id, player.Nickname, $"result|{player.Score}|{player.Kills}|{coins}|{rank}|{durationSeconds}|{nonce}", TimeSpan.FromMinutes(5));
-                var resultPayload = JsonSerializer.SerializeToUtf8Bytes(new { type = "gameOver", score = player.Score, kills = player.Kills, coins, rank, durationSeconds, resultToken }, JsonOptions);
+                var reason = matchFinished ? "timeout" : "eliminated";
+                var resultPayload = JsonSerializer.SerializeToUtf8Bytes(new { type = "gameOver", reason, score = player.Score, kills = player.Kills, coins, rank, durationSeconds, resultToken }, JsonOptions);
                 connection.ResultSent = await TrySend(connection, resultPayload, cancellationToken, waitForLock: true);
             }
         }

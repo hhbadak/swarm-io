@@ -55,6 +55,12 @@ public sealed class ArenaSimulation
     public int PlayerCount => _players.Count;
     public bool HasCapacity => RealPlayerCount < MaxPlayers;
 
+    public static float MovementSpeedFor(float radius, float traitMultiplier = 1)
+    {
+        var sizeMultiplier = MathF.Max(1, radius / 18);
+        return MathF.Max(72, BaseSpeed / MathF.Pow(sizeMultiplier, 0.72f)) * traitMultiplier;
+    }
+
     public ArenaPlayer AddPlayer(Guid id, string nickname, string skinId = "starter")
     {
         if (_players.TryGetValue(id, out var existing) && existing.Alive)
@@ -135,7 +141,7 @@ public sealed class ArenaSimulation
             var player = pair.Value;
             if (!player.Alive) continue;
             var trait = CharacterTraits.For(player.SkinId);
-            var speed = MathF.Max(125, BaseSpeed - (player.Radius - 18) * 2.2f) * trait.SpeedMultiplier;
+            var speed = MovementSpeedFor(player.Radius, trait.SpeedMultiplier);
             var dashActive = _dashUntilTick.TryGetValue(player.Id, out var dashUntil) && _tick < dashUntil;
             if (dashActive) speed *= 1.85f * trait.DashMultiplier;
             if (InsideZone(player.Position, "speed")) speed *= 1.3f;

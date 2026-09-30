@@ -10,7 +10,7 @@ var tests = new (string Name, Action Run)[]
     ("Every character has a unique trait", EveryCharacterHasUniqueTrait), ("Character traits affect simulation", CharacterTraitsAffectSimulation),
     ("Arena has zones and rarity", ArenaHasProductSystems), ("Reconnect preserves player", ReconnectPreservesPlayer),
     ("Bots fill a 24 player arena", BotsFillTargetPopulation), ("Real players replace bots", RealPlayersReplaceBots),
-    ("Arena accepts at most 50 real players", ArenaCapacityIsEnforced)
+    ("Arena accepts at most 50 real players", ArenaCapacityIsEnforced), ("Growth reduces movement speed", GrowthReducesMovementSpeed)
 };
 var failures = 0;
 foreach (var test in tests)
@@ -189,5 +189,13 @@ static void ArenaCapacityIsEnforced()
     try { simulation.AddPlayer(Guid.NewGuid(), "Player-51"); }
     catch (InvalidOperationException) { rejected = true; }
     Assert(rejected, "The 51st real player must be rejected.");
+}
+static void GrowthReducesMovementSpeed()
+{
+    var start = ArenaSimulation.MovementSpeedFor(18);
+    var doubleSize = ArenaSimulation.MovementSpeedFor(36);
+    var fourTimesSize = ArenaSimulation.MovementSpeedFor(72);
+    Assert(start > doubleSize && doubleSize > fourTimesSize, "Movement speed must fall at every growth tier.");
+    Assert(fourTimesSize <= start * 0.45f, "A 4x character must be substantially slower than a new character.");
 }
 static void Assert(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
