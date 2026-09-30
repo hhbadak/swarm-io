@@ -4,7 +4,10 @@ SWARM.IO; web ve mobil tarayıcıda aynı tasarımla çalışan, sunucu otoritel
 
 ## Ürün kapsamı
 
-- 20 Hz WebSocket arena; 3200×1800 oyun alanı, 22 bot, canlı liderlik.
+- 20 Hz WebSocket arena; 3200×1800 oyun alanı, arena başına en fazla 50 gerçek oyuncu ve canlı liderlik.
+- Hızlı eşleşme ile dolu olmayan genel arenaya giriş; `SW-XXXX` koduyla arkadaş odası oluşturma ve katılma.
+- Arena 24 katılımcıya kadar botlarla dolar; gerçek oyuncu geldikçe bir bot otomatik çıkar (3 arkadaş + 21 bot gibi).
+- Liderlik tablosunda gerçek oyuncu ve botlar ayrı işaretlenir.
 - Dairesel ve yumuşak büyüme; biraz büyük olan oyuncu küçüğü yiyebilir.
 - Dört enerji nadirliği, hız/altın/çekim bölgeleri ve enerji fırtınası.
 - Atılma, kalkan ve mıknatıs yetenekleri; sunucu tarafında bekleme süresi denetimi.
@@ -65,6 +68,8 @@ Dağıtımdan önce [yayın kontrol listesini](docs/release-checklist.md) uygula
 - Yönetici anahtarı sabit-zamanlı karşılaştırılır ve üretimde yalnızca ortam sırrından gelir.
 
 Gerçek para tahsilatı varsayılan olarak kapalıdır. Canlı ödeme sağlayıcısı ve mağaza hesapları bağlanmadan istemciye sahte başarı/ödül verilmez.
+
+Mobil istemci varsayılan olarak `https://swarm-io.onrender.com` canlı API adresine bağlanır. Otomatik cihaz-içi moda düşmez; bağlantı sorunu görünür biçimde bildirilir. Yerel çevrimdışı simülasyon yalnızca geliştirme amacıyla `?offline=1` parametresiyle açılır.
 
 ## Yapı
 

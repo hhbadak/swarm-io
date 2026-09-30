@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Net.Sockets;
+using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using System.Threading.RateLimiting;
 using Swarm.Application;
@@ -31,6 +32,7 @@ builder.Services.AddDbContext<SwarmDbContext>(options =>
     else options.UseNpgsql(connectionString);
 });
 builder.Services.AddSingleton(new SwarmTokenService(tokenSecret));
+builder.Services.AddSingleton<FriendRoomRegistry>();
 builder.Services.AddHttpClient();
 builder.Services.AddCors(options => options.AddPolicy("mobile", policy => policy
     .WithOrigins("capacitor://localhost", "ionic://localhost")
@@ -244,13 +246,25 @@ app.MapPost("/api/v1/inventory/equip", async (CosmeticActionRequest body, HttpRe
     return Results.Ok(new { equippedSkin = target.ItemId });
 }).RequireRateLimiting("write");
 
-app.MapPost("/api/v1/matchmaking/queue", async (HttpRequest request, SwarmDbContext db, SwarmTokenService tokens, IConfiguration configuration, CancellationToken cancellationToken) =>
+app.MapPost("/api/v1/matchmaking/rooms", (HttpRequest request, SwarmTokenService tokens, FriendRoomRegistry rooms) =>
+{
+    if (!TryGetAccessToken(request, tokens, out _)) return Results.Unauthorized();
+    return Results.Ok(new { roomCode = rooms.Create(), capacity = ArenaSimulation.MaxPlayers });
+}).RequireRateLimiting("matchmaking");
+
+app.MapPost("/api/v1/matchmaking/queue", async (string? mode, string? roomCode, HttpRequest request, SwarmDbContext db, SwarmTokenService tokens, FriendRoomRegistry rooms, IConfiguration configuration, CancellationToken cancellationToken) =>
 {
     if (!TryGetAccessToken(request, tokens, out var payload)) return Results.Unauthorized();
+    var matchmakingMode = string.Equals(mode, "private", StringComparison.OrdinalIgnoreCase) ? "private" : "public";
+    var normalizedRoomCode = matchmakingMode == "private" ? NormalizeRoomCode(roomCode) : null;
+    if (matchmakingMode == "private" && normalizedRoomCode is null)
+        return ApiError("INVALID_ROOM_CODE", "Oda kodu SW-XXXX biçiminde olmalıdır.");
+    if (matchmakingMode == "private" && !rooms.Exists(normalizedRoomCode!))
+        return ApiError("ROOM_NOT_FOUND", "Bu arkadaş odası bulunamadı veya süresi doldu.", StatusCodes.Status404NotFound);
     var skinId = await GetEquippedSkinAsync(db, payload.PlayerId, cancellationToken);
-    var ticket = tokens.Issue(payload.PlayerId, payload.Nickname, $"match|{skinId}", TimeSpan.FromMinutes(2));
+    var ticket = tokens.Issue(payload.PlayerId, payload.Nickname, $"match|{skinId}|{matchmakingMode}|{normalizedRoomCode ?? string.Empty}", TimeSpan.FromMinutes(2));
     var gameUrl = Environment.GetEnvironmentVariable("SWARM_GAME_WS_URL") ?? configuration["Swarm:GameWebSocketUrl"] ?? "ws://localhost:5090/ws/arena";
-    return Results.Ok(new { ticket, websocketUrl = gameUrl, expiresInSeconds = 120 });
+    return Results.Ok(new { ticket, websocketUrl = gameUrl, mode = matchmakingMode, roomCode = normalizedRoomCode, capacity = ArenaSimulation.MaxPlayers, expiresInSeconds = 120 });
 }).RequireRateLimiting("matchmaking");
 
 app.MapPost("/api/v1/rewards/match", async (MatchRewardRequest body, HttpRequest request, SwarmDbContext db, SwarmTokenService tokens, CancellationToken cancellationToken) =>
@@ -519,6 +533,12 @@ static string NormalizeNickname(string? nickname)
     return value.Length <= 24 ? value : value[..24];
 }
 
+static string? NormalizeRoomCode(string? value)
+{
+    var code = value?.Trim().ToUpperInvariant();
+    return code is { Length: 7 } && code.StartsWith("SW-") && code[3..].All(char.IsLetterOrDigit) ? code : null;
+}
+
 static async Task<bool> CheckRedisAsync(string host, CancellationToken cancellationToken)
 {
     try
@@ -690,6 +710,46 @@ static async Task<AppleTransactionInfo?> GetAppleTransactionAsync(HttpClient cli
 static IResult ApiError(string code, string message, int status = StatusCodes.Status400BadRequest)
     => Results.Json(new { success = false, code, message }, statusCode: status);
 
+public sealed class FriendRoomRegistry
+{
+    private static readonly TimeSpan Lifetime = TimeSpan.FromHours(2);
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _rooms = new(StringComparer.OrdinalIgnoreCase);
+
+    public string Create()
+    {
+        RemoveExpired();
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            var code = GenerateRoomCode();
+            if (_rooms.TryAdd(code, DateTimeOffset.UtcNow.Add(Lifetime))) return code;
+        }
+        throw new InvalidOperationException("A unique friend room code could not be generated.");
+    }
+
+    public bool Exists(string code)
+    {
+        if (!_rooms.TryGetValue(code, out var expiresAt)) return false;
+        if (expiresAt > DateTimeOffset.UtcNow) return true;
+        _rooms.TryRemove(code, out _);
+        return false;
+    }
+
+    private void RemoveExpired()
+    {
+        foreach (var room in _rooms.Where(pair => pair.Value <= DateTimeOffset.UtcNow).ToArray()) _rooms.TryRemove(room.Key, out _);
+    }
+
+    private static string GenerateRoomCode()
+    {
+        const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        Span<byte> bytes = stackalloc byte[4];
+        RandomNumberGenerator.Fill(bytes);
+        var characters = new char[4];
+        for (var index = 0; index < characters.Length; index++) characters[index] = alphabet[bytes[index] % alphabet.Length];
+        return $"SW-{new string(characters)}";
+    }
+}
+
 public sealed record GuestLoginRequest(string DeviceId, string? Nickname);
 public sealed record GuestLoginResponse(string AccessToken, PlayerResponse Player);
 public sealed record PlayerResponse(Guid Id, string Nickname, long Coins, long Gems, string EquippedSkin);
@@ -782,7 +842,8 @@ static class RemoteConfigCatalog
         ["MAINTENANCE_MODE"] = "false", ["ENABLE_BATTLE_PASS"] = "true", ["ENABLE_TEAM_MODE"] = "false", ["ENABLE_IAP"] = "true",
         ["ENABLE_ADS"] = "false", ["ENABLE_NEW_EVENT"] = "true", ["ENABLE_RANKED"] = "false",
         ["PLAYER_BASE_SPEED"] = "230", ["GROWTH_RATE"] = "0.7", ["DASH_COOLDOWN_SECONDS"] = "4",
-        ["SHIELD_COOLDOWN_SECONDS"] = "15", ["MAGNET_COOLDOWN_SECONDS"] = "13", ["BOT_COUNT"] = "22"
+        ["SHIELD_COOLDOWN_SECONDS"] = "15", ["MAGNET_COOLDOWN_SECONDS"] = "13",
+        ["ARENA_MAX_PLAYERS"] = "50", ["ARENA_TARGET_POPULATION"] = "24"
     };
     public static readonly HashSet<string> Keys = new(Defaults.Keys, StringComparer.Ordinal);
 }

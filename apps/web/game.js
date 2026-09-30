@@ -7,6 +7,9 @@ const gameOverNode = document.querySelector('#game-over');
 const eventNode = document.querySelector('#event-banner');
 const playerId = window.SwarmRuntime.session.get('swarm.playerId');
 const accessToken = window.SwarmRuntime.session.get('swarm.accessToken');
+const matchParams = new URLSearchParams(location.search);
+const matchMode = matchParams.get('mode') === 'private' ? 'private' : 'public';
+const matchRoomCode = (matchParams.get('room') || '').trim().toUpperCase();
 let snapshot = { players: [], energy: [], zones: [], arenaWidth: 3200, arenaHeight: 1800 };
 let socket;
 let input = { x: 0, y: 0 };
@@ -54,15 +57,20 @@ async function connect() {
   if (!accessToken || !playerId) return location.replace(window.SwarmRuntime.homeUrl);
   connectionNode.textContent = 'EŞLEŞİYOR';
   let response;
-  try { response = await window.SwarmRuntime.request('/api/v1/matchmaking/queue', { method: 'POST', headers: { authorization: `Bearer ${accessToken}` } }); }
+  const queueQuery = new URLSearchParams({ mode: matchMode });
+  if (matchRoomCode) queueQuery.set('roomCode', matchRoomCode);
+  try { response = await window.SwarmRuntime.request(`/api/v1/matchmaking/queue?${queueQuery}`, { method: 'POST', headers: { authorization: `Bearer ${accessToken}` } }); }
   catch { connectionNode.textContent = 'SUNUCU BEKLENİYOR'; reconnectTimer = setTimeout(connect, 1800); return; }
   if (response.status === 401) return location.replace(window.SwarmRuntime.homeUrl);
   if (!response.ok) { connectionNode.textContent = 'TEKRAR DENENİYOR'; reconnectTimer = setTimeout(connect, 1800); return; }
   const assignment = await response.json();
   if (assignment.offline) { startLocalArena(); return; }
   socket = new WebSocket(`${assignment.websocketUrl}?ticket=${encodeURIComponent(assignment.ticket)}`);
-  socket.addEventListener('open', () => { connectionNode.textContent = 'CANLI'; sendInput(); });
-  socket.addEventListener('close', () => { connectionNode.textContent = 'YENİDEN BAĞLANIYOR'; reconnectTimer = setTimeout(connect, 1200); });
+  socket.addEventListener('open', () => { connectionNode.textContent = matchRoomCode ? `CANLI · ${matchRoomCode}` : 'CANLI'; sendInput(); });
+  socket.addEventListener('close', event => {
+    if (event.code === 1008) { connectionNode.textContent = 'ODA DOLU / KOD GEÇERSİZ'; return; }
+    connectionNode.textContent = 'YENİDEN BAĞLANIYOR'; reconnectTimer = setTimeout(connect, 1200);
+  });
   socket.addEventListener('message', event => {
     const message = JSON.parse(event.data);
     if (message.type === 'snapshot') { snapshot = message; updateHud(); }
@@ -90,11 +98,11 @@ function startLocalArena() {
   const state = window.SwarmOffline?.read?.() ?? { nickname: 'Nova', equippedSkin: 'starter' };
   const skins = ['starter', 'neon', 'hex', 'solar', 'void', 'gold'];
   const names = ['Orion', 'Vega', 'Lyra', 'Atlas', 'Luna', 'Pulsar', 'Astra', 'Comet'];
-  const own = { id: playerId, nickname: state.nickname, skinId: state.equippedSkin, position: { x: 1600, y: 900 }, radius: BASE_RADIUS, score: 0, kills: 0, alive: true, safeUntil: performance.now() + 3000 };
+  const own = { id: playerId, nickname: state.nickname, skinId: state.equippedSkin, position: { x: 1600, y: 900 }, radius: BASE_RADIUS, score: 0, kills: 0, alive: true, isBot: false, safeUntil: performance.now() + 3000 };
   const bots = names.map((nickname, index) => ({
     id: `offline-bot-${index}`, nickname, skinId: skins[(index + 1) % skins.length],
     position: { x: 250 + Math.random() * 2700, y: 180 + Math.random() * 1440 },
-    radius: 18 + Math.random() * 12, score: Math.floor(Math.random() * 80), kills: 0, alive: true,
+    radius: 18 + Math.random() * 12, score: Math.floor(Math.random() * 80), kills: 0, alive: true, isBot: true,
     angle: Math.random() * Math.PI * 2, turnAt: 0
   }));
   snapshot = {
@@ -275,10 +283,14 @@ function updateHud() {
     document.querySelector('#size').textContent = `${Math.max(1, own.radius / BASE_RADIUS).toFixed(1)}×`;
     if (!own.alive && gameOverNode.hidden) showGameOver(players, own);
   }
+  if (!localMode && Number.isFinite(snapshot.capacity)) {
+    const roomLabel = snapshot.roomCode || 'GENEL';
+    connectionNode.textContent = `CANLI · ${roomLabel} · ${snapshot.realPlayers}/${snapshot.capacity}`;
+  }
   const boundaryWarning = performance.now() < boundaryWarningUntil;
   eventNode.hidden = !snapshot.event && !boundaryWarning;
   eventNode.textContent = boundaryWarning ? own?.score === 0 ? '0 ENERJİ · SINIRDAN UZAKLAŞ YOKSA ÖLECEKSİN' : 'SINIR TEMASI · ENERJİ VE BOYUT AZALIYOR' : snapshot.event?.message ?? '';
-  leaderboardNode.innerHTML = players.slice(0, 5).map((player, index) => `<li class="${player.id.toLowerCase() === playerId.toLowerCase() ? 'you' : ''}"><b>${index + 1}</b><span>${escapeHtml(player.nickname)}</span><strong>${player.score}</strong></li>`).join('');
+  leaderboardNode.innerHTML = players.slice(0, 5).map((player, index) => `<li class="${player.id.toLowerCase() === playerId.toLowerCase() ? 'you' : ''}"><b>${index + 1}</b><span>${escapeHtml(player.nickname)} <em class="player-kind ${player.isBot ? 'bot' : 'human'}">${player.isBot ? 'BOT' : '●'}</em></span><strong>${player.score}</strong></li>`).join('');
 }
 
 function showGameOver(players, own) {

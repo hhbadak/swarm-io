@@ -19,15 +19,7 @@
     },
     async request(path, options = {}) {
       if (this.offline && window.SwarmOffline) return window.SwarmOffline.request(path, options);
-      try {
-        const response = await fetch(this.apiUrl(path), options);
-        if (response.ok || !native || ![404, 502, 503, 504].includes(response.status)) return response;
-      } catch (error) {
-        if (!native) throw error;
-      }
-      if (!window.SwarmOffline) throw new Error('Sunucuya ulaşılamıyor.');
-      this.offline = true;
-      return window.SwarmOffline.request(path, options);
+      return fetch(this.apiUrl(path), options);
     },
     page,
     homeUrl: native ? page('./index.html') : '/',

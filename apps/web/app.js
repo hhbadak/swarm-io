@@ -11,6 +11,7 @@ let selected = 'starter';
 let activeFilter = 'all';
 let profile;
 let paymentOffers = [];
+let createdRoomCode = '';
 
 function token() { return window.SwarmRuntime.session.get('swarm.accessToken'); }
 function authHeaders(json = false) { return { ...(json ? { 'content-type': 'application/json' } : {}), ...(token() ? { authorization: `Bearer ${token()}` } : {}) }; }
@@ -173,11 +174,57 @@ function closeCosmetics() {
   if (location.search) history.replaceState(null, '', location.pathname);
 }
 
+function gameUrl(mode = 'public', roomCode = '') {
+  const url = new URL(window.SwarmRuntime.gameUrl, location.href);
+  url.searchParams.set('mode', mode);
+  if (roomCode) url.searchParams.set('room', roomCode);
+  return url.href;
+}
+
+async function enterArena(mode = 'public', roomCode = '') {
+  const normalizedCode = roomCode.trim().toUpperCase();
+  if (mode === 'private' && !/^SW-[A-Z0-9]{4}$/.test(normalizedCode)) throw new Error('Oda kodu SW-XXXX biçiminde olmalı.');
+  await createSession();
+  location.href = gameUrl(mode, normalizedCode);
+}
+
 form.addEventListener('submit', async event => {
   event.preventDefault();
   const button = form.querySelector('button'); button.disabled = true; statusNode.textContent = 'Avcı profili hazırlanıyor…';
-  try { await createSession(); location.href = window.SwarmRuntime.gameUrl; }
+  try { await enterArena('public'); }
   catch (error) { statusNode.textContent = error.message; button.disabled = false; }
+});
+document.querySelector('#create-room').addEventListener('click', async event => {
+  const button = event.currentTarget; button.disabled = true; statusNode.textContent = 'Arkadaş odası hazırlanıyor…';
+  try {
+    await createSession();
+    const result = await api('/api/v1/matchmaking/rooms', { method: 'POST', headers: authHeaders() });
+    createdRoomCode = result.roomCode;
+    const panel = document.querySelector('#room-created'); panel.hidden = false;
+    document.querySelector('#copy-room-code').textContent = createdRoomCode;
+    statusNode.textContent = 'Oda hazır. Kodu paylaş, sonra odaya gir.';
+  } catch (error) { statusNode.textContent = error.message; }
+  finally { button.disabled = false; }
+});
+document.querySelector('#copy-room-code').addEventListener('click', async () => {
+  if (!createdRoomCode) return;
+  try { await navigator.clipboard.writeText(createdRoomCode); statusNode.textContent = `${createdRoomCode} panoya kopyalandı.`; }
+  catch { statusNode.textContent = `Oda kodun: ${createdRoomCode}`; }
+});
+document.querySelector('#enter-created-room').addEventListener('click', async event => {
+  const button = event.currentTarget; button.disabled = true;
+  try { await enterArena('private', createdRoomCode); }
+  catch (error) { statusNode.textContent = error.message; button.disabled = false; }
+});
+document.querySelector('#join-room').addEventListener('click', async event => {
+  const button = event.currentTarget; button.disabled = true; statusNode.textContent = 'Arkadaş odasına bağlanılıyor…';
+  try { await enterArena('private', document.querySelector('#room-code').value); }
+  catch (error) { statusNode.textContent = error.message === 'ROOM_NOT_FOUND' ? 'Bu oda bulunamadı veya kodun süresi doldu.' : error.message; button.disabled = false; }
+});
+document.querySelector('#room-code').addEventListener('input', event => {
+  let value = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (value.startsWith('SW')) value = value.slice(2);
+  event.target.value = value ? `SW-${value.slice(0, 4)}` : '';
 });
 document.querySelectorAll('button.nav-item').forEach(button => button.addEventListener('click', () => {
   document.querySelectorAll('button.nav-item').forEach(item => item.classList.toggle('active', item === button));

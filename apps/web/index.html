@@ -45,7 +45,12 @@
       <form id="login-form">
         <label for="nickname">AVCI ADIN</label>
         <input id="nickname" maxlength="24" autocomplete="nickname" value="Nova" required>
-        <button class="primary-action" type="submit">ARENAYA GİR <span>→</span></button>
+        <button class="primary-action" type="submit">HIZLI OYNA <span>→</span></button>
+        <div class="friend-match" aria-label="Arkadaş odası">
+          <button id="create-room" class="secondary-action" type="button">ARKADAŞ ODASI OLUŞTUR</button>
+          <div class="room-join"><input id="room-code" maxlength="7" autocomplete="off" spellcheck="false" placeholder="SW-XXXX" aria-label="Arkadaş oda kodu"><button id="join-room" type="button">KODLA KATIL</button></div>
+          <div id="room-created" class="room-created" hidden><span>ODA KODUN</span><button id="copy-room-code" type="button">SW-XXXX</button><small>Bu kodu arkadaşlarınla paylaş.</small><button id="enter-created-room" type="button">ODAYA GİR →</button></div>
+        </div>
         <p id="status" role="status">Sunucu bağlantısı bekleniyor.</p>
       </form>
       <div class="selected-loadout"><span>KUŞANILAN</span><b id="equipped-name">Starter Core</b><button id="open-collection" type="button">DEĞİŞTİR</button></div>

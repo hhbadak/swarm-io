@@ -10,24 +10,32 @@ var tokenSecret = Environment.GetEnvironmentVariable("SWARM_TOKEN_SECRET")
     ?? builder.Configuration["Swarm:TokenSecret"]
     ?? throw new InvalidOperationException("Swarm token secret is required.");
 builder.Services.AddSingleton(new SwarmTokenService(tokenSecret));
-builder.Services.AddSingleton<ArenaRoom>();
+builder.Services.AddSingleton<ArenaRoomManager>();
 builder.Services.AddHostedService<ArenaLoopService>();
 
 var app = builder.Build();
 app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(20) });
 app.MapGet("/health/live", () => Results.Ok(new { status = "live" }));
-app.MapGet("/health/ready", (ArenaRoom room) => Results.Ok(new { status = "ready", players = room.PlayerCount }));
-app.Map("/ws/arena", async (HttpContext context, SwarmTokenService tokens, ArenaRoom room) =>
+app.MapGet("/health/ready", (ArenaRoomManager rooms) => Results.Ok(new { status = "ready", players = rooms.PlayerCount, arenas = rooms.RoomCount }));
+app.Map("/ws/arena", async (HttpContext context, SwarmTokenService tokens, ArenaRoomManager rooms) =>
 {
     if (!context.WebSockets.IsWebSocketRequest) { context.Response.StatusCode = StatusCodes.Status400BadRequest; return; }
     if (!tokens.TryValidatePurposePrefix(context.Request.Query["ticket"].ToString(), "match|", out var payload))
     { context.Response.StatusCode = StatusCodes.Status401Unauthorized; return; }
 
+    var parts = payload.Purpose.Split('|');
+    var skinId = parts.ElementAtOrDefault(1) ?? "starter";
+    var mode = parts.ElementAtOrDefault(2) ?? "public";
+    var roomCode = parts.ElementAtOrDefault(3);
     using var socket = await context.WebSockets.AcceptWebSocketAsync();
-    var skinId = payload.Purpose.Split('|', 2).ElementAtOrDefault(1) ?? "starter";
-    var connection = room.Connect(payload.PlayerId, payload.Nickname, skinId, socket);
-    try { await ReceiveInputs(socket, room, payload.PlayerId, context.RequestAborted); }
-    finally { room.Disconnect(connection); }
+    var joined = rooms.Connect(payload.PlayerId, payload.Nickname, skinId, mode, roomCode, socket);
+    if (joined is null)
+    {
+        await socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Arena full or invalid room.", context.RequestAborted);
+        return;
+    }
+    try { await ReceiveInputs(socket, joined.Room, payload.PlayerId, context.RequestAborted); }
+    finally { rooms.Disconnect(joined); }
 });
 app.Run();
 
@@ -60,13 +68,100 @@ public sealed record PlayerInput(
     [property: JsonPropertyName("dash")] bool Dash = false,
     [property: JsonPropertyName("ability")] string? Ability = null);
 
-public sealed class ArenaConnection(Guid playerId, WebSocket socket)
+public sealed class ArenaConnection(Guid playerId, string roomId, WebSocket socket)
 {
     public Guid PlayerId { get; } = playerId;
+    public string RoomId { get; } = roomId;
     public WebSocket Socket { get; } = socket;
     public SemaphoreSlim SendLock { get; } = new(1, 1);
     public bool ResultSent { get; set; }
     public DateTimeOffset ConnectedAt { get; } = DateTimeOffset.UtcNow;
+}
+
+public sealed record ArenaJoin(ArenaRoom Room, ArenaConnection Connection);
+
+public sealed class ArenaRoomManager
+{
+    private readonly object _gate = new();
+    private readonly Dictionary<string, ArenaRoom> _rooms = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<Guid, string> _playerRooms = new();
+    private readonly SwarmTokenService _tokens;
+    private int _publicSequence;
+
+    public ArenaRoomManager(SwarmTokenService tokens) => _tokens = tokens;
+    public int RoomCount { get { lock (_gate) return _rooms.Count; } }
+    public int PlayerCount { get { lock (_gate) return _rooms.Values.Sum(room => room.PlayerCount); } }
+
+    public ArenaJoin? Connect(Guid playerId, string nickname, string skinId, string mode, string? requestedCode, WebSocket socket)
+    {
+        lock (_gate)
+        {
+            var isPrivate = string.Equals(mode, "private", StringComparison.OrdinalIgnoreCase);
+            var normalizedCode = NormalizeRoomCode(requestedCode);
+            if (isPrivate && normalizedCode is null) return null;
+
+            ArenaRoom room;
+            if (_playerRooms.TryGetValue(playerId, out var previousRoomId)
+                && _rooms.TryGetValue(previousRoomId, out var previousRoom)
+                && (isPrivate
+                    ? previousRoom.IsPrivate && string.Equals(previousRoom.Code, normalizedCode, StringComparison.OrdinalIgnoreCase)
+                    : !previousRoom.IsPrivate))
+            {
+                room = previousRoom;
+            }
+            else if (isPrivate)
+            {
+                var roomId = $"private:{normalizedCode}";
+                if (!_rooms.TryGetValue(roomId, out room!))
+                {
+                    room = new ArenaRoom(roomId, normalizedCode!, true, _tokens);
+                    _rooms[roomId] = room;
+                }
+            }
+            else
+            {
+                room = _rooms.Values
+                    .Where(candidate => !candidate.IsPrivate && candidate.CanAccept(playerId))
+                    .OrderByDescending(candidate => candidate.PlayerCount)
+                    .FirstOrDefault()!;
+                if (room is null)
+                {
+                    var roomId = $"public:{++_publicSequence:D4}";
+                    room = new ArenaRoom(roomId, null, false, _tokens);
+                    _rooms[roomId] = room;
+                }
+            }
+
+            if (!room.TryConnect(playerId, nickname, skinId, socket, out var connection)) return null;
+            _playerRooms[playerId] = room.Id;
+            return new ArenaJoin(room, connection!);
+        }
+    }
+
+    public void Disconnect(ArenaJoin joined) => joined.Room.Disconnect(joined.Connection);
+
+    public async Task TickAndBroadcast(TimeSpan elapsed, CancellationToken cancellationToken)
+    {
+        ArenaRoom[] rooms;
+        lock (_gate) rooms = _rooms.Values.ToArray();
+        foreach (var room in rooms) await room.TickAndBroadcast(elapsed, cancellationToken);
+
+        lock (_gate)
+        {
+            foreach (var room in rooms.Where(candidate => candidate.CanRetire).ToArray())
+            {
+                if (!_rooms.Remove(room.Id)) continue;
+                foreach (var player in _playerRooms.Where(pair => pair.Value == room.Id).Select(pair => pair.Key).ToArray())
+                    _playerRooms.Remove(player);
+            }
+        }
+    }
+
+    private static string? NormalizeRoomCode(string? value)
+    {
+        var code = value?.Trim().ToUpperInvariant();
+        return code is { Length: 7 } && code.StartsWith("SW-") && code[3..].All(char.IsLetterOrDigit) ? code : null;
+    }
 }
 
 public sealed class ArenaRoom
@@ -77,16 +172,32 @@ public sealed class ArenaRoom
     private readonly ConcurrentDictionary<Guid, ArenaConnection> _connections = new();
     private readonly ConcurrentDictionary<Guid, DateTimeOffset> _disconnectDeadlines = new();
     private readonly SwarmTokenService _tokens;
-    public ArenaRoom(SwarmTokenService tokens) => _tokens = tokens;
+    private DateTimeOffset _lastActivity = DateTimeOffset.UtcNow;
+    public ArenaRoom(string id, string? code, bool isPrivate, SwarmTokenService tokens)
+    { Id = id; Code = code; IsPrivate = isPrivate; _tokens = tokens; }
+    public string Id { get; }
+    public string? Code { get; }
+    public bool IsPrivate { get; }
     public int PlayerCount => _connections.Count;
-
-    public ArenaConnection Connect(Guid playerId, string nickname, string skinId, WebSocket socket)
+    public bool CanRetire => PlayerCount == 0 && DateTimeOffset.UtcNow - _lastActivity > TimeSpan.FromMinutes(2);
+    public bool CanAccept(Guid playerId)
     {
-        lock (_gate) _simulation.AddPlayer(playerId, nickname, skinId);
+        lock (_gate) return _simulation.Snapshot().Players.Any(player => player.Id == playerId) || _simulation.HasCapacity;
+    }
+
+    public bool TryConnect(Guid playerId, string nickname, string skinId, WebSocket socket, out ArenaConnection? connection)
+    {
+        connection = null;
+        lock (_gate)
+        {
+            if (!_simulation.Snapshot().Players.Any(player => player.Id == playerId) && !_simulation.HasCapacity) return false;
+            _simulation.AddPlayer(playerId, nickname, skinId);
+        }
         _disconnectDeadlines.TryRemove(playerId, out _);
-        var connection = new ArenaConnection(playerId, socket);
+        connection = new ArenaConnection(playerId, Id, socket);
         _connections[playerId] = connection;
-        return connection;
+        _lastActivity = DateTimeOffset.UtcNow;
+        return true;
     }
 
     public void Disconnect(ArenaConnection connection)
@@ -95,6 +206,7 @@ public sealed class ArenaRoom
         {
             _connections.TryRemove(connection.PlayerId, out _);
             _disconnectDeadlines[connection.PlayerId] = DateTimeOffset.UtcNow.AddSeconds(15);
+            _lastActivity = DateTimeOffset.UtcNow;
         }
     }
 
@@ -116,6 +228,12 @@ public sealed class ArenaRoom
         var payload = JsonSerializer.SerializeToUtf8Bytes(new
         {
             type = "snapshot",
+            roomId = Id,
+            roomCode = Code,
+            isPrivate = IsPrivate,
+            capacity = ArenaSimulation.MaxPlayers,
+            realPlayers = snapshot.Players.Count(player => !player.IsBot),
+            bots = snapshot.Players.Count(player => player.IsBot),
             arenaWidth = ArenaSimulation.ArenaWidth,
             arenaHeight = ArenaSimulation.ArenaHeight,
             snapshot.Tick,
@@ -166,13 +284,13 @@ public sealed class ArenaRoom
     }
 }
 
-public sealed class ArenaLoopService(ArenaRoom room, ILogger<ArenaLoopService> logger) : BackgroundService
+public sealed class ArenaLoopService(ArenaRoomManager rooms, ILogger<ArenaLoopService> logger) : BackgroundService
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromMilliseconds(50);
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var timer = new PeriodicTimer(TickInterval);
         logger.LogInformation("Arena loop started at {TickRate} ticks per second", 20);
-        while (await timer.WaitForNextTickAsync(stoppingToken)) await room.TickAndBroadcast(TickInterval, stoppingToken);
+        while (await timer.WaitForNextTickAsync(stoppingToken)) await rooms.TickAndBroadcast(TickInterval, stoppingToken);
     }
 }

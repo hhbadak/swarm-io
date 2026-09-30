@@ -6,6 +6,8 @@ public sealed class ArenaSimulation
 {
     public const float ArenaWidth = 3200;
     public const float ArenaHeight = 1800;
+    public const int MaxPlayers = 50;
+    public const int TargetPopulation = 24;
     private const float BaseSpeed = 230;
     private const int TargetEnergyCount = 300;
     private readonly Dictionary<Guid, ArenaPlayer> _players = new();
@@ -30,23 +32,28 @@ public sealed class ArenaSimulation
     };
     private readonly Random _random;
     private long _tick;
+    private int _botSequence;
+
+    private static readonly string[] BotNames =
+    [
+        "Vortex", "Toxic", "Nyx", "Blaze", "Khan", "Pixel", "Orion", "Ghost", "Razor", "Luna", "Apex",
+        "Volt", "Mamba", "Comet", "Hex", "Frost", "Venom", "Drift", "Echo", "Onyx", "Flux", "Titan",
+        "Pulsar", "Vega", "Lyra", "Atlas", "Astra", "NovaBot", "Quasar", "Cipher", "Jade", "Ember",
+        "Rift", "Halo", "Ion", "Kite", "Mira", "Nexus", "Orbit", "Prism", "Rune", "Sonic", "Talon",
+        "Umbra", "Wave", "Xeno", "Yuki", "Zen", "Cosmo", "Bolt"
+    ];
 
     public ArenaSimulation(int seed = 149)
     {
         _random = new Random(seed);
         RefillEnergy();
-        var botNames = new[]
-        {
-            "Vortex", "Toxic", "Nyx", "Blaze", "Khan", "Pixel", "Orion", "Ghost", "Razor", "Luna", "Apex",
-            "Volt", "Mamba", "Comet", "Hex", "Frost", "Venom", "Drift", "Echo", "Onyx", "Flux", "Titan"
-        };
-        foreach (var name in botNames)
-        {
-            var id = Guid.NewGuid();
-            _botIds.Add(id);
-            _players[id] = CreatePlayer(id, name, true, _random.Next(0, 80), BotSkin(name));
-        }
+        RebalanceBots();
     }
+
+    public int RealPlayerCount => _players.Values.Count(player => !player.IsBot);
+    public int BotCount => _botIds.Count;
+    public int PlayerCount => _players.Count;
+    public bool HasCapacity => RealPlayerCount < MaxPlayers;
 
     public ArenaPlayer AddPlayer(Guid id, string nickname, string skinId = "starter")
     {
@@ -55,9 +62,11 @@ public sealed class ArenaSimulation
             _players[id] = existing with { Nickname = nickname, SkinId = skinId };
             return _players[id];
         }
+        if (!HasCapacity) throw new InvalidOperationException("Arena is full.");
         var player = CreatePlayer(id, nickname, false, 0, skinId);
         _players[id] = player;
         _invulnerableUntilTick[id] = _tick + 60;
+        RebalanceBots();
         return player;
     }
 
@@ -71,6 +80,7 @@ public sealed class ArenaSimulation
             _lastMovementInput.Remove(id);
             _boundaryPenaltyReadyTick.Remove(id);
             _zeroBoundaryHits.Remove(id);
+            RebalanceBots();
         }
     }
 
@@ -217,6 +227,40 @@ public sealed class ArenaSimulation
     {
         var skins = new[] { "starter", "neon", "hex", "solar", "void", "gold" };
         return skins[Math.Abs(StringComparer.Ordinal.GetHashCode(nickname)) % skins.Length];
+    }
+
+    private void RebalanceBots()
+    {
+        var desiredBots = Math.Clamp(TargetPopulation - RealPlayerCount, 0, MaxPlayers - RealPlayerCount);
+        while (_botIds.Count > desiredBots)
+        {
+            var botId = _botIds.First();
+            _botIds.Remove(botId);
+            RemovePlayerState(botId);
+        }
+        while (_botIds.Count < desiredBots)
+        {
+            var name = BotNames[_botSequence % BotNames.Length];
+            if (_botSequence >= BotNames.Length) name = $"{name}-{1 + (_botSequence / BotNames.Length)}";
+            _botSequence++;
+            var id = Guid.NewGuid();
+            _botIds.Add(id);
+            _players[id] = CreatePlayer(id, name, true, _random.Next(0, 80), BotSkin(name));
+        }
+    }
+
+    private void RemovePlayerState(Guid id)
+    {
+        _players.Remove(id);
+        _invulnerableUntilTick.Remove(id);
+        _dashDirection.Remove(id);
+        _lastMovementInput.Remove(id);
+        _boundaryPenaltyReadyTick.Remove(id);
+        _zeroBoundaryHits.Remove(id);
+        _shieldUntilTick.Remove(id);
+        _shieldReadyTick.Remove(id);
+        _magnetUntilTick.Remove(id);
+        _magnetReadyTick.Remove(id);
     }
 
     private void UpdateBots()

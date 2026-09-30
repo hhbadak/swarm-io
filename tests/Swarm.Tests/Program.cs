@@ -8,7 +8,9 @@ var tests = new (string Name, Action Run)[]
     ("Stationary dash uses last direction", StationaryDashUsesLastDirection), ("Zero energy boundary contact kills", ZeroEnergyBoundaryContactKills),
     ("Shield activates and cools down", ShieldActivates), ("Magnet activates", MagnetActivates),
     ("Every character has a unique trait", EveryCharacterHasUniqueTrait), ("Character traits affect simulation", CharacterTraitsAffectSimulation),
-    ("Arena has zones and rarity", ArenaHasProductSystems), ("Reconnect preserves player", ReconnectPreservesPlayer)
+    ("Arena has zones and rarity", ArenaHasProductSystems), ("Reconnect preserves player", ReconnectPreservesPlayer),
+    ("Bots fill a 24 player arena", BotsFillTargetPopulation), ("Real players replace bots", RealPlayersReplaceBots),
+    ("Arena accepts at most 50 real players", ArenaCapacityIsEnforced)
 };
 var failures = 0;
 foreach (var test in tests)
@@ -164,5 +166,28 @@ static void ReconnectPreservesPlayer()
     var before = simulation.Snapshot().Players.Single(x => x.Id == id);
     var reconnected = simulation.AddPlayer(id, "Nova", "neon");
     Assert(reconnected.Position == before.Position && reconnected.SkinId == "neon", "Reconnect must keep live arena state.");
+}
+static void BotsFillTargetPopulation()
+{
+    var simulation = new ArenaSimulation(101);
+    Assert(simulation.PlayerCount == 24 && simulation.BotCount == 24 && simulation.RealPlayerCount == 0, "An empty arena must be filled to 24 with bots.");
+}
+static void RealPlayersReplaceBots()
+{
+    var simulation = new ArenaSimulation(102);
+    var players = Enumerable.Range(0, 3).Select(index => simulation.AddPlayer(Guid.NewGuid(), $"Friend-{index}")).ToArray();
+    Assert(simulation.RealPlayerCount == 3 && simulation.BotCount == 21 && simulation.PlayerCount == 24, "Three friends must play with 21 bots.");
+    simulation.RemovePlayer(players[0].Id);
+    Assert(simulation.RealPlayerCount == 2 && simulation.BotCount == 22 && simulation.PlayerCount == 24, "A departing real player must be replaced by a bot.");
+}
+static void ArenaCapacityIsEnforced()
+{
+    var simulation = new ArenaSimulation(103);
+    for (var index = 0; index < ArenaSimulation.MaxPlayers; index++) simulation.AddPlayer(Guid.NewGuid(), $"Player-{index}");
+    Assert(simulation.RealPlayerCount == 50 && simulation.BotCount == 0 && simulation.PlayerCount == 50, "Arena must hold 50 real players and no bots.");
+    var rejected = false;
+    try { simulation.AddPlayer(Guid.NewGuid(), "Player-51"); }
+    catch (InvalidOperationException) { rejected = true; }
+    Assert(rejected, "The 51st real player must be rejected.");
 }
 static void Assert(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
