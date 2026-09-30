@@ -14,7 +14,9 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     WebRootPath = Path.Combine(AppContext.BaseDirectory, "web")
 });
 
-var connectionString = builder.Configuration.GetConnectionString("Swarm")
+var connectionString = NormalizeDatabaseConnectionString(
+    Environment.GetEnvironmentVariable("DATABASE_URL")
+    ?? builder.Configuration.GetConnectionString("Swarm"))
     ?? throw new InvalidOperationException("ConnectionStrings:Swarm is required.");
 var tokenSecret = Environment.GetEnvironmentVariable("SWARM_TOKEN_SECRET")
     ?? builder.Configuration["Swarm:TokenSecret"]
@@ -263,7 +265,11 @@ app.MapPost("/api/v1/matchmaking/queue", async (string? mode, string? roomCode, 
         return ApiError("ROOM_NOT_FOUND", "Bu arkadaş odası bulunamadı veya süresi doldu.", StatusCodes.Status404NotFound);
     var skinId = await GetEquippedSkinAsync(db, payload.PlayerId, cancellationToken);
     var ticket = tokens.Issue(payload.PlayerId, payload.Nickname, $"match|{skinId}|{matchmakingMode}|{normalizedRoomCode ?? string.Empty}", TimeSpan.FromMinutes(2));
-    var gameUrl = Environment.GetEnvironmentVariable("SWARM_GAME_WS_URL") ?? configuration["Swarm:GameWebSocketUrl"] ?? "ws://localhost:5090/ws/arena";
+    var gameHost = Environment.GetEnvironmentVariable("SWARM_GAME_HOST");
+    var gameUrl = Environment.GetEnvironmentVariable("SWARM_GAME_WS_URL")
+        ?? (!string.IsNullOrWhiteSpace(gameHost) ? $"wss://{gameHost}/ws/arena" : null)
+        ?? configuration["Swarm:GameWebSocketUrl"]
+        ?? "ws://localhost:5090/ws/arena";
     return Results.Ok(new { ticket, websocketUrl = gameUrl, mode = matchmakingMode, roomCode = normalizedRoomCode, capacity = ArenaSimulation.MaxPlayers, expiresInSeconds = 120 });
 }).RequireRateLimiting("matchmaking");
 
@@ -526,6 +532,18 @@ app.MapPut("/api/v1/admin/config/{key}", async (string key, RemoteConfigRequest 
 
 app.MapFallbackToFile("index.html");
 app.Run();
+
+static string? NormalizeDatabaseConnectionString(string? value)
+{
+    if (string.IsNullOrWhiteSpace(value) || !value.StartsWith("postgres", StringComparison.OrdinalIgnoreCase)) return value;
+    var uri = new Uri(value);
+    var credentials = uri.UserInfo.Split(':', 2);
+    if (credentials.Length != 2) throw new InvalidOperationException("DATABASE_URL credentials are incomplete.");
+    var user = Uri.UnescapeDataString(credentials[0]);
+    var password = Uri.UnescapeDataString(credentials[1]);
+    var database = Uri.UnescapeDataString(uri.AbsolutePath.TrimStart('/'));
+    return $"Host={uri.Host};Port={(uri.IsDefaultPort ? 5432 : uri.Port)};Database={database};Username={user};Password={password}";
+}
 
 static string NormalizeNickname(string? nickname)
 {
