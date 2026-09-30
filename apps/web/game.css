@@ -33,6 +33,6 @@
   .zone-guide{top:calc(var(--safe-top) + 70px);left:max(9px,var(--safe-left));max-width:calc(100vw - 178px);display:grid;gap:2px;padding:7px 8px}.zone-guide span{padding:0;border:0}
   .ability-bar{top:50%;right:max(10px,var(--safe-right));bottom:auto;display:flex;flex-direction:column;gap:7px;transform:translateY(-38%)}
   .ability-bar button{width:58px;height:58px;min-width:58px;flex-basis:58px}
-  .mobile-stick{left:max(20px,var(--safe-left));bottom:calc(var(--safe-bottom) + 22px);width:104px;height:104px;display:grid;touch-action:none;pointer-events:auto}
+  .mobile-stick{left:50%;bottom:max(calc(var(--safe-bottom) + 70px),20svh);width:104px;height:104px;display:grid;transform:translateX(-50%);touch-action:none;pointer-events:auto}
   .mobile-stick::after{display:none}
 }
