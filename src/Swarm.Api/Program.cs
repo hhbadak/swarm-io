@@ -31,6 +31,8 @@ var adminKey = Environment.GetEnvironmentVariable("SWARM_ADMIN_KEY")
 builder.Services.AddDbContext<SwarmDbContext>(options =>
 {
     if (databaseProvider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase)) options.UseSqlite(connectionString);
+    else if (databaseProvider.Equals("MySql", StringComparison.OrdinalIgnoreCase))
+        options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
     else options.UseNpgsql(connectionString);
 });
 builder.Services.AddSingleton(new SwarmTokenService(tokenSecret));
@@ -265,7 +267,8 @@ app.MapPost("/api/v1/matchmaking/queue", async (string? mode, string? roomCode, 
         return ApiError("ROOM_NOT_FOUND", "Bu arkadaş odası bulunamadı veya süresi doldu.", StatusCodes.Status404NotFound);
     var skinId = await GetEquippedSkinAsync(db, payload.PlayerId, cancellationToken);
     var ticket = tokens.Issue(payload.PlayerId, payload.Nickname, $"match|{skinId}|{matchmakingMode}|{normalizedRoomCode ?? string.Empty}", TimeSpan.FromMinutes(2));
-    var gameHost = Environment.GetEnvironmentVariable("SWARM_GAME_HOST");
+    var gameHost = Environment.GetEnvironmentVariable("SWARM_GAME_HOST")
+        ?? Environment.GetEnvironmentVariable("RENDER_EXTERNAL_HOSTNAME");
     var gameUrl = Environment.GetEnvironmentVariable("SWARM_GAME_WS_URL")
         ?? (!string.IsNullOrWhiteSpace(gameHost) ? $"wss://{gameHost}/ws/arena" : null)
         ?? configuration["Swarm:GameWebSocketUrl"]
@@ -584,6 +587,11 @@ static async Task<string> GetEquippedSkinAsync(SwarmDbContext db, Guid playerId,
 
 static async Task EnsureProductSchemaAsync(SwarmDbContext db, string provider)
 {
+    // Fresh MySQL deployments are fully created by EF Core EnsureCreated above.
+    // The raw SQL below only exists for older SQLite/PostgreSQL installations
+    // that predate the product tables.
+    if (provider.Equals("MySql", StringComparison.OrdinalIgnoreCase)) return;
+
     var sql = provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase)
         ? """
           CREATE TABLE IF NOT EXISTS player_cosmetics (

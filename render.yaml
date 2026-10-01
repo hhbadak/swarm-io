@@ -1,11 +1,11 @@
 services:
   - type: web
-    name: swarm-io-api
+    name: swarm-io-hhbadak-live
     runtime: docker
-    plan: 0.5c-512mb
+    plan: free
     region: frankfurt
     branch: main
-    dockerfilePath: ./src/Swarm.Api/Dockerfile
+    dockerfilePath: ./deployment/render-free/Dockerfile
     dockerContext: .
     healthCheckPath: /health/ready
     autoDeployTrigger: commit
@@ -14,44 +14,13 @@ services:
       - key: PORT
         value: "8080"
       - key: SWARM_DB_PROVIDER
-        value: Postgres
+        value: MySql
       - key: SWARM_AUTO_CREATE_DATABASE
         value: "true"
       - key: SWARM_ADMIN_KEY
         generateValue: true
       - key: DATABASE_URL
-        fromDatabase:
-          name: swarm-io-db
-          property: connectionString
-      - key: SWARM_GAME_HOST
-        fromService:
-          name: swarm-io-game
-          type: web
-          envVarKey: RENDER_EXTERNAL_HOSTNAME
-
-  - type: web
-    name: swarm-io-game
-    runtime: docker
-    plan: 0.5c-512mb
-    region: frankfurt
-    branch: main
-    dockerfilePath: ./src/Swarm.GameServer/Dockerfile
-    dockerContext: .
-    healthCheckPath: /health/ready
-    autoDeployTrigger: commit
-    envVars:
-      - fromGroup: swarm-io-shared
-      - key: PORT
-        value: "8080"
-
-databases:
-  - name: swarm-io-db
-    plan: 0.1c-256mb
-    region: frankfurt
-    postgresMajorVersion: "17"
-    databaseName: swarm_io
-    user: swarm_io
-    ipAllowList: []
+        sync: false
 
 envVarGroups:
   - name: swarm-io-shared
