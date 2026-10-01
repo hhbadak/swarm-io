@@ -11,8 +11,6 @@ services:
     autoDeployTrigger: commit
     envVars:
       - fromGroup: swarm-io-shared
-      - key: PORT
-        value: "8080"
       - key: SWARM_DB_PROVIDER
         value: MySql
       - key: SWARM_AUTO_CREATE_DATABASE

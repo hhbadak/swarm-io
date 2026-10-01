@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 
+listen_port="${PORT:-10000}"
+sed -i "s/__PORT__/${listen_port}/g" /etc/nginx/http.d/default.conf
+
 ASPNETCORE_URLS=http://127.0.0.1:8081 dotnet /app/api/Swarm.Api.dll &
 api_pid=$!
 ASPNETCORE_URLS=http://127.0.0.1:8082 dotnet /app/game/Swarm.GameServer.dll &
