@@ -248,8 +248,8 @@ public sealed class ArenaRoom
             arenaHeight = ArenaSimulation.ArenaHeight,
             snapshot.Tick,
             snapshot.Players,
-            snapshot.Energy,
-            snapshot.Zones,
+            energy = snapshot.Tick % 5 == 0 ? snapshot.Energy : null,
+            zones = snapshot.Tick % 20 == 0 ? snapshot.Zones : null,
             snapshot.Event
         }, JsonOptions);
         foreach (var connection in _connections.Values)

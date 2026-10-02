@@ -8,6 +8,8 @@
 
 .mobile-stick { display: none; }
 .hud,.leaderboard,.zone-guide{pointer-events:none}.ability-bar,.mobile-stick,.game-over{pointer-events:auto}
+.performance-mode .hud,.performance-mode .leaderboard,.performance-mode .zone-guide{backdrop-filter:none}
+#fps{color:#59e4ed}.fps-low{color:#ff6eb4!important}
 @media(pointer:coarse){#arena{pointer-events:none}}
 .event-banner{position:fixed;z-index:12;top:94px;left:50%;transform:translateX(-50%);padding:9px 18px;border:1px solid #f5c96c88;border-radius:999px;background:#201323e8;color:#ffe09b;font-size:11px;font-weight:950;letter-spacing:.1em;box-shadow:0 0 30px #f5c96c30;animation:event-pulse 1.2s ease-in-out infinite alternate}.ability-bar{display:flex;gap:9px}.ability-bar button{width:76px;height:76px;min-width:76px;padding:0 4px;overflow:hidden;flex:0 0 76px}.ability-bar button b{font-size:11px;line-height:1.05;letter-spacing:.02em;white-space:nowrap}.ability-bar button span{margin-top:5px;line-height:1;letter-spacing:.08em}.ability-bar button:first-child{border-color:#73c5ff}.ability-bar button:nth-child(2){border-color:#c49cff}.ability-bar button:disabled{filter:saturate(.3);opacity:.55}.hud-score span b{color:#fff}.zone-legend{display:none}@keyframes event-pulse{to{box-shadow:0 0 45px #f5c96c66}}
 

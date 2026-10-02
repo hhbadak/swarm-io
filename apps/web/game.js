@@ -1,5 +1,5 @@
 const canvas = document.querySelector('#arena');
-const context = canvas.getContext('2d');
+const context = canvas.getContext('2d', { alpha: false, desynchronized: true });
 const connectionNode = document.querySelector('#connection');
 const scoreNode = document.querySelector('#score');
 const leaderboardNode = document.querySelector('#leaderboard ol');
@@ -29,7 +29,21 @@ let localResultSent = false;
 const MATCH_DURATION_SECONDS = 5 * 60;
 const trails = new Map();
 const visualRadii = new Map();
+const visualPositions = new Map();
 const BASE_RADIUS = 22;
+const TARGET_FPS = 60;
+const MIN_FPS = 50;
+const mobilePerformanceMode = window.SwarmRuntime.native || matchMedia('(pointer: coarse)').matches;
+const maxRenderDpr = Math.min(devicePixelRatio, mobilePerformanceMode ? 1.6 : 2);
+let renderDpr = maxRenderDpr;
+let renderQuality = mobilePerformanceMode ? 1 : 2;
+let cachedNebula;
+let fpsWindowStartedAt = performance.now();
+let fpsFrames = 0;
+let stableFpsWindows = 0;
+let lastHudUpdateAt = 0;
+let pendingHudUpdate = false;
+let lastInputSentAt = 0;
 const SKIN_TRAITS = {
   starter: { boundaryPenalty: .8 },
   neon: { magnetReach: 1.35 },
@@ -50,8 +64,10 @@ function insideZone(position, kind) {
 }
 
 function resize() {
-  canvas.width = Math.floor(innerWidth * devicePixelRatio);
-  canvas.height = Math.floor(innerHeight * devicePixelRatio);
+  canvas.width = Math.floor(innerWidth * renderDpr);
+  canvas.height = Math.floor(innerHeight * renderDpr);
+  cachedNebula = context.createRadialGradient(canvas.width * .72, canvas.height * .28, 0, canvas.width * .72, canvas.height * .28, canvas.width * .55);
+  cachedNebula.addColorStop(0, '#28135f55'); cachedNebula.addColorStop(.5, '#101c4b33'); cachedNebula.addColorStop(1, '#03061100');
 }
 addEventListener('resize', resize);
 resize();
@@ -77,12 +93,20 @@ async function connect() {
   });
   socket.addEventListener('message', event => {
     const message = JSON.parse(event.data);
-    if (message.type === 'snapshot') { snapshot = message; updateHud(); }
+    if (message.type === 'snapshot') {
+      snapshot = {
+        ...snapshot,
+        ...message,
+        energy: Array.isArray(message.energy) ? message.energy : snapshot.energy,
+        zones: Array.isArray(message.zones) ? message.zones : snapshot.zones
+      };
+      scheduleHudUpdate();
+    }
     if (message.type === 'gameOver') handleGameOver(message);
   });
 }
 
-function sendInput(dash = false, ability = null) {
+function sendInput(dash = false, ability = null, force = false) {
   const inputLength = Math.hypot(input.x, input.y);
   if (inputLength > .05) lastMovementInput = { x: input.x / inputLength, y: input.y / inputLength };
   if (localMode) {
@@ -92,7 +116,12 @@ function sendInput(dash = false, ability = null) {
     if (own && ability === 'magnet') own.magnetUntil = performance.now() + 5000;
     return;
   }
-  if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ ...input, dash, ability }));
+  const now = performance.now();
+  if (!force && !dash && !ability && now - lastInputSentAt < 32) return;
+  if (socket?.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({ ...input, dash, ability }));
+    lastInputSentAt = now;
+  }
 }
 
 function startLocalArena() {
@@ -124,7 +153,7 @@ function startLocalArena() {
   localArenaTimer = setInterval(() => {
     const now = performance.now(), dt = Math.min(.05, (now - previous) / 1000); previous = now;
     updateLocalArena(dt, now);
-  }, 32);
+  }, 20);
 }
 
 function offlineOrb(index = 0) {
@@ -217,7 +246,7 @@ function updateLocalArena(dt, now) {
       claimReward({ offline: true, score: smaller.score, kills: smaller.kills });
     }
   }
-  updateHud();
+  scheduleHudUpdate();
 }
 
 function pointInput(clientX, clientY) {
@@ -250,7 +279,7 @@ function releaseStick(event) {
   if (event.pointerId !== stickPointerId) return;
   stickPointerId = null; input = { x: 0, y: 0 };
   stick.style.setProperty('--stick-x', '0px'); stick.style.setProperty('--stick-y', '0px');
-  sendInput();
+  sendInput(false, null, true);
 }
 stick.addEventListener('pointerdown', event => {
   event.preventDefault(); event.stopPropagation(); stickPointerId = event.pointerId; stick.setPointerCapture(event.pointerId); moveStick(event);
@@ -278,7 +307,7 @@ function keyboardInput() {
     x: (keys.has('d') || keys.has('arrowright') ? 1 : 0) - (keys.has('a') || keys.has('arrowleft') ? 1 : 0),
     y: (keys.has('s') || keys.has('arrowdown') ? 1 : 0) - (keys.has('w') || keys.has('arrowup') ? 1 : 0)
   };
-  sendInput();
+  sendInput(false, null, true);
 }
 
 function updateHud() {
@@ -300,6 +329,19 @@ function updateHud() {
   eventNode.hidden = !snapshot.event && !boundaryWarning;
   eventNode.textContent = boundaryWarning ? own?.score === 0 ? '0 ENERJİ · SINIRDAN UZAKLAŞ YOKSA ÖLECEKSİN' : 'SINIR TEMASI · ENERJİ VE BOYUT AZALIYOR' : snapshot.event?.message ?? '';
   leaderboardNode.innerHTML = players.slice(0, 5).map((player, index) => `<li class="${player.id.toLowerCase() === playerId.toLowerCase() ? 'you' : ''}"><b>${index + 1}</b><span>${escapeHtml(player.nickname)} <em class="player-kind ${player.isBot ? 'bot' : 'human'}">${player.isBot ? 'BOT' : '●'}</em></span><strong>${player.score}</strong></li>`).join('');
+}
+
+function scheduleHudUpdate(force = false) {
+  const now = performance.now();
+  if (force || now - lastHudUpdateAt >= 100) {
+    lastHudUpdateAt = now;
+    pendingHudUpdate = false;
+    updateHud();
+    return;
+  }
+  if (pendingHudUpdate) return;
+  pendingHudUpdate = true;
+  setTimeout(() => scheduleHudUpdate(true), Math.max(0, 100 - (now - lastHudUpdateAt)));
 }
 
 function movementSpeedFor(radius, traitMultiplier = 1) {
@@ -401,9 +443,12 @@ function escapeHtml(value) {
 }
 
 function render() {
-  const dpr = devicePixelRatio;
+  const dpr = renderDpr;
+  const frameTime = performance.now();
+  monitorFrameRate(frameTime);
   const own = (snapshot.players ?? []).find(player => player.id.toLowerCase() === playerId?.toLowerCase()) ?? lastOwnPlayer;
-  const camera = own?.position ?? { x: 800, y: 450 };
+  const ownVisualPosition = own ? smoothPosition(own, .34) : null;
+  const camera = ownVisualPosition ?? own?.position ?? { x: 800, y: 450 };
   const zoom = dpr * Math.max(0.72, 1.08 - ((own?.radius ?? 18) - 18) * 0.006);
   const screen = position => ({ x: canvas.width / 2 + (position.x - camera.x) * zoom, y: canvas.height / 2 + (position.y - camera.y) * zoom });
 
@@ -421,24 +466,67 @@ function render() {
     context.beginPath();
     context.fillStyle = ({ rare: '#64ff8d', epic: '#c49cff', core: '#f5c96c' }[orb.kind] ?? '#59e4ed');
     context.shadowColor = context.fillStyle;
-    context.shadowBlur = 14 * dpr;
+    context.shadowBlur = renderQuality > 0 && orb.kind !== 'common' ? 10 * dpr : 0;
     context.arc(point.x, point.y, radius, 0, Math.PI * 2);
     context.fill();
   }
   context.shadowBlur = 0;
 
-  for (const player of snapshot.players ?? []) {
-    if (!player.alive) continue;
+  const alivePlayers = (snapshot.players ?? []).filter(player => player.alive);
+  const leaderScore = alivePlayers.reduce((highest, player) => Math.max(highest, player.score), 0);
+  for (const player of alivePlayers) {
+    const visualPosition = player.id === own?.id ? ownVisualPosition : smoothPosition(player, .28);
+    const point = screen(visualPosition ?? player.position);
+    const visibleMargin = Math.max(100 * dpr, player.radius * zoom * 2);
+    if (point.x < -visibleMargin || point.y < -visibleMargin || point.x > canvas.width + visibleMargin || point.y > canvas.height + visibleMargin) continue;
     const trail = trails.get(player.id) ?? [];
-    trail.unshift({ ...player.position });
-    if (trail.length > 20) trail.pop();
+    const trailHead = trail[0];
+    if (!trailHead || Math.hypot(trailHead.x - visualPosition.x, trailHead.y - visualPosition.y) > 2) trail.unshift({ ...visualPosition });
+    const trailLimit = renderQuality > 0 ? 12 : 6;
+    if (trail.length > trailLimit) trail.length = trailLimit;
     trails.set(player.id, trail);
-    drawCreature(player, trail, screen, zoom, player.id.toLowerCase() === playerId?.toLowerCase());
+    drawCreature(player, visualPosition, trail, screen, zoom, player.id.toLowerCase() === playerId?.toLowerCase(), leaderScore, frameTime);
   }
   requestAnimationFrame(render);
 }
 
-function drawCreature(player, trail, screen, zoom, own) {
+function smoothPosition(player, amount) {
+  const current = visualPositions.get(player.id) ?? { ...player.position };
+  current.x += (player.position.x - current.x) * amount;
+  current.y += (player.position.y - current.y) * amount;
+  visualPositions.set(player.id, current);
+  return current;
+}
+
+function monitorFrameRate(now) {
+  fpsFrames++;
+  const elapsed = now - fpsWindowStartedAt;
+  if (elapsed < 1000) return;
+  const fps = fpsFrames * 1000 / elapsed;
+  const roundedFps = Math.round(fps);
+  const fpsNode = document.querySelector('#fps');
+  fpsNode.textContent = `${roundedFps} FPS`;
+  fpsNode.classList.toggle('fps-low', fps < MIN_FPS);
+  fpsFrames = 0;
+  fpsWindowStartedAt = now;
+  if (fps < MIN_FPS) {
+    stableFpsWindows = 0;
+    renderQuality = 0;
+    if (renderDpr > 1) { renderDpr = Math.max(1, renderDpr - .2); resize(); }
+    document.documentElement.classList.add('performance-mode');
+  } else if (fps >= TARGET_FPS - 2) {
+    stableFpsWindows++;
+    if (stableFpsWindows >= 5 && renderDpr < maxRenderDpr) {
+      renderDpr = Math.min(maxRenderDpr, renderDpr + .1);
+      renderQuality = renderDpr >= maxRenderDpr ? 1 : renderQuality;
+      if (renderDpr >= maxRenderDpr) document.documentElement.classList.remove('performance-mode');
+      resize();
+      stableFpsWindows = 0;
+    }
+  } else stableFpsWindows = 0;
+}
+
+function drawCreature(player, visualPosition, trail, screen, zoom, own, leaderScore, time) {
   const skin = window.SwarmCharacters?.skins[player.skinId] ?? window.SwarmCharacters?.skins.starter;
   const color = skin?.primary ?? (own ? '#59e4ed' : '#b69cff');
   const previousRadius = visualRadii.get(player.id) ?? player.radius;
@@ -448,27 +536,26 @@ function drawCreature(player, trail, screen, zoom, own) {
     const point = screen(trail[index]);
     const fade = 1 - index / trail.length;
     context.beginPath(); context.globalAlpha = fade * 0.34; context.fillStyle = color;
-    context.arc(point.x, point.y, Math.max(1.5 * devicePixelRatio, visualRadius * zoom * fade * .12), 0, Math.PI * 2); context.fill();
+    context.arc(point.x, point.y, Math.max(1.5 * renderDpr, visualRadius * zoom * fade * .12), 0, Math.PI * 2); context.fill();
   }
   context.globalAlpha = 1;
-  const point = screen(player.position);
+  const point = screen(visualPosition);
   if (player.magnetActive) {
-    context.beginPath(); context.strokeStyle = '#c49cff66'; context.lineWidth = 2 * devicePixelRatio;
+    context.beginPath(); context.strokeStyle = '#c49cff66'; context.lineWidth = 2 * renderDpr;
     context.arc(point.x, point.y, 120 * zoom, 0, Math.PI * 2); context.stroke();
   }
-  window.SwarmCharacters?.drawCharacter(context, { x: point.x, y: point.y, radius: visualRadius * zoom, skinId: player.skinId, time: performance.now() });
+  window.SwarmCharacters?.drawCharacter(context, { x: point.x, y: point.y, radius: visualRadius * zoom, skinId: player.skinId, time, quality: renderQuality, glow: own || renderQuality > 0 });
   if (player.shieldActive) {
-    context.beginPath(); context.strokeStyle = '#73c5ff'; context.lineWidth = 3 * devicePixelRatio; context.shadowColor = '#73c5ff'; context.shadowBlur = 16 * devicePixelRatio;
+    context.beginPath(); context.strokeStyle = '#73c5ff'; context.lineWidth = 3 * renderDpr; context.shadowColor = '#73c5ff'; context.shadowBlur = renderQuality > 0 ? 12 * renderDpr : 0;
     context.arc(point.x, point.y, visualRadius * zoom * 1.35, 0, Math.PI * 2); context.stroke(); context.shadowBlur = 0;
   }
-  const leaderScore = Math.max(...(snapshot.players ?? []).filter(candidate => candidate.alive).map(candidate => candidate.score), 0);
   if (player.score === leaderScore && player.score >= 120) {
-    context.beginPath(); context.strokeStyle = '#ff4d8d99'; context.lineWidth = 2 * devicePixelRatio;
+    context.beginPath(); context.strokeStyle = '#ff4d8d99'; context.lineWidth = 2 * renderDpr;
     context.arc(point.x, point.y, visualRadius * zoom * 1.55, 0, Math.PI * 2); context.stroke();
   }
-  context.fillStyle = '#fff'; context.font = `700 ${12 * devicePixelRatio}px system-ui`; context.textAlign = 'center';
-  context.shadowColor = '#02040b'; context.shadowBlur = 6 * devicePixelRatio;
-  context.fillText(player.nickname, point.x, point.y - visualRadius * zoom * 1.55 - 8 * devicePixelRatio);
+  context.fillStyle = '#fff'; context.font = `700 ${12 * renderDpr}px system-ui`; context.textAlign = 'center';
+  context.shadowColor = '#02040b'; context.shadowBlur = renderQuality > 0 ? 4 * renderDpr : 0;
+  context.fillText(player.nickname, point.x, point.y - visualRadius * zoom * 1.55 - 8 * renderDpr);
   context.shadowBlur = 0;
 }
 
@@ -480,28 +567,31 @@ function drawZones(screen, zoom) {
   };
   for (const zone of snapshot.zones ?? []) {
     const point = screen(zone.position), style = styles[zone.kind] ?? styles.gravity;
-    context.beginPath(); context.fillStyle = style[0]; context.strokeStyle = style[1]; context.lineWidth = 2 * devicePixelRatio;
+    const margin = zone.radius * zoom;
+    if (point.x < -margin || point.y < -margin || point.x > canvas.width + margin || point.y > canvas.height + margin) continue;
+    context.beginPath(); context.fillStyle = style[0]; context.strokeStyle = style[1]; context.lineWidth = 2 * renderDpr;
     context.arc(point.x, point.y, zone.radius * zoom, 0, Math.PI * 2); context.fill(); context.stroke();
-    context.fillStyle = style[1]; context.font = `800 ${10 * devicePixelRatio}px system-ui`; context.textAlign = 'center';
-    context.fillText(style[2], point.x, point.y - zone.radius * zoom + 18 * devicePixelRatio);
+    context.fillStyle = style[1]; context.font = `800 ${10 * renderDpr}px system-ui`; context.textAlign = 'center';
+    context.fillText(style[2], point.x, point.y - zone.radius * zoom + 18 * renderDpr);
   }
 }
 
 function drawGrid(camera, zoom) {
-  context.strokeStyle = '#111a40'; context.lineWidth = devicePixelRatio;
+  context.strokeStyle = '#111a40'; context.lineWidth = renderDpr;
   const step = 100 * zoom, startX = canvas.width / 2 - (camera.x * zoom) % step, startY = canvas.height / 2 - (camera.y * zoom) % step;
-  for (let x = startX; x < canvas.width; x += step) { context.beginPath(); context.moveTo(x, 0); context.lineTo(x, canvas.height); context.stroke(); }
-  for (let y = startY; y < canvas.height; y += step) { context.beginPath(); context.moveTo(0, y); context.lineTo(canvas.width, y); context.stroke(); }
+  context.beginPath();
+  for (let x = startX; x < canvas.width; x += step) { context.moveTo(x, 0); context.lineTo(x, canvas.height); }
+  for (let y = startY; y < canvas.height; y += step) { context.moveTo(0, y); context.lineTo(canvas.width, y); }
+  context.stroke();
 }
 
-function drawNebula(camera, zoom) {
-  const glow = context.createRadialGradient(canvas.width * .72, canvas.height * .28, 0, canvas.width * .72, canvas.height * .28, canvas.width * .55);
-  glow.addColorStop(0, '#28135f55'); glow.addColorStop(.5, '#101c4b33'); glow.addColorStop(1, '#03061100'); context.fillStyle = glow; context.fillRect(0, 0, canvas.width, canvas.height);
+function drawNebula() {
+  context.fillStyle = cachedNebula; context.fillRect(0, 0, canvas.width, canvas.height);
 }
 
 function drawBoundary(screen, zoom) {
   const topLeft = screen({ x: 0, y: 0 });
-  context.strokeStyle = '#ff4d8d'; context.lineWidth = 4 * devicePixelRatio; context.shadowColor = '#ff4d8d'; context.shadowBlur = 20;
+  context.strokeStyle = '#ff4d8d'; context.lineWidth = 4 * renderDpr; context.shadowColor = '#ff4d8d'; context.shadowBlur = renderQuality > 0 ? 14 : 0;
   context.strokeRect(topLeft.x, topLeft.y, snapshot.arenaWidth * zoom, snapshot.arenaHeight * zoom); context.shadowBlur = 0;
 }
 

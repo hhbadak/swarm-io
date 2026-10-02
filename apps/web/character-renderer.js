@@ -19,7 +19,7 @@
   }
 
   function drawCharacter(ctx, options) {
-    const { x, y, radius, skinId = 'starter', time = 0, alpha = 1 } = options;
+    const { x, y, radius, skinId = 'starter', time = 0, alpha = 1, quality = 2, glow = true } = options;
     const skin = skins[skinId] ?? skins.starter;
     const pulse = 1 + Math.sin(time * .002) * .018;
     const r = radius * pulse;
@@ -27,9 +27,9 @@
     ctx.globalAlpha = alpha;
     ctx.translate(x, y);
     ctx.shadowColor = skin.primary;
-    ctx.shadowBlur = r * .72;
+    ctx.shadowBlur = glow ? r * (quality > 0 ? .52 : .24) : 0;
 
-    if (skinId === 'void' || skinId === 'gold') {
+    if (quality > 0 && (skinId === 'void' || skinId === 'gold')) {
       ctx.save();
       ctx.rotate(time * .00035);
       ctx.strokeStyle = skin.primary;
@@ -80,7 +80,7 @@
       ctx.beginPath(); ctx.arc(0, 0, r * .72, 0, Math.PI * 2); ctx.fill();
     }
 
-    ctx.shadowBlur = r * .28;
+    ctx.shadowBlur = glow && quality > 0 ? r * .2 : 0;
     ctx.fillStyle = '#ffffff';
     const eyeX = r * .25, eyeY = -r * .05, eyeRx = Math.max(2, r * .105), eyeRy = Math.max(3, r * .18);
     ctx.beginPath(); ctx.ellipse(-eyeX, eyeY, eyeRx, eyeRy, 0, 0, Math.PI * 2); ctx.ellipse(eyeX, eyeY, eyeRx, eyeRy, 0, 0, Math.PI * 2); ctx.fill();
