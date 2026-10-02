@@ -10,6 +10,16 @@
     return url.href;
   }
 
+  const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+
+  function canRetry(path, options) {
+    const method = String(options.method || 'GET').toUpperCase();
+    return method === 'GET'
+      || method === 'HEAD'
+      || path.startsWith('/api/v1/auth/guest')
+      || path.startsWith('/api/v1/matchmaking/queue');
+  }
+
   window.SwarmRuntime = {
     native,
     platform: native ? 'ios' : 'web',
@@ -19,7 +29,22 @@
     },
     async request(path, options = {}) {
       if (this.offline && window.SwarmOffline) return window.SwarmOffline.request(path, options);
-      return fetch(this.apiUrl(path), options);
+      const retryDelays = canRetry(path, options) ? [0, 1200, 2500, 5000, 9000] : [0];
+      let lastError;
+      for (let attempt = 0; attempt < retryDelays.length; attempt++) {
+        if (retryDelays[attempt]) await wait(retryDelays[attempt]);
+        try {
+          const response = await fetch(this.apiUrl(path), options);
+          if (![408, 425, 429, 502, 503, 504].includes(response.status) || attempt === retryDelays.length - 1) return response;
+          lastError = new Error(`Sunucu geçici olarak hazır değil (${response.status}).`);
+        } catch (error) {
+          lastError = error;
+          if (attempt === retryDelays.length - 1) break;
+        }
+        dispatchEvent(new CustomEvent('swarm:network-retry', { detail: { attempt: attempt + 1, path } }));
+      }
+      if (lastError) console.warn('SWARM.IO bağlantısı kurulamadı:', lastError.message);
+      throw new Error('Sunucu uyanıyor. Lütfen birkaç saniye sonra tekrar dene.');
     },
     page,
     homeUrl: native ? page('./index.html') : '/',

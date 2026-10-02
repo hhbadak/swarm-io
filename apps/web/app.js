@@ -13,6 +13,10 @@ let profile;
 let paymentOffers = [];
 let createdRoomCode = '';
 
+addEventListener('swarm:network-retry', () => {
+  statusNode.textContent = 'Ücretsiz sunucu uyanıyor… Bağlantı otomatik yeniden deneniyor.';
+});
+
 function token() { return window.SwarmRuntime.session.get('swarm.accessToken'); }
 function authHeaders(json = false) { return { ...(json ? { 'content-type': 'application/json' } : {}), ...(token() ? { authorization: `Bearer ${token()}` } : {}) }; }
 function deviceId() {
