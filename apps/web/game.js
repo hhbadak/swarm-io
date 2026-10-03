@@ -34,10 +34,11 @@ const BASE_RADIUS = 22;
 const TARGET_FPS = 60;
 const MIN_FPS = 50;
 const mobilePerformanceMode = window.SwarmRuntime.native || matchMedia('(pointer: coarse)').matches;
-const maxRenderDpr = Math.min(devicePixelRatio, mobilePerformanceMode ? 1.15 : 2);
-const minRenderDpr = mobilePerformanceMode ? .8 : 1;
+const maxRenderDpr = Math.min(devicePixelRatio, mobilePerformanceMode ? .85 : 2);
+const minRenderDpr = mobilePerformanceMode ? .65 : 1;
 let renderDpr = maxRenderDpr;
 let renderQuality = mobilePerformanceMode ? 0 : 2;
+let ultraPerformanceMode = false;
 let cachedNebula;
 let fpsWindowStartedAt = performance.now();
 let fpsFrames = 0;
@@ -45,6 +46,7 @@ let stableFpsWindows = 0;
 let lastHudUpdateAt = 0;
 let pendingHudUpdate = false;
 let lastInputSentAt = 0;
+if (mobilePerformanceMode) document.documentElement.classList.add('performance-mode');
 const SKIN_TRAITS = {
   starter: { boundaryPenalty: .8 },
   neon: { magnetReach: 1.35 },
@@ -457,7 +459,7 @@ function render() {
 
   context.fillStyle = '#030611';
   context.fillRect(0, 0, canvas.width, canvas.height);
-  drawNebula(camera, zoom);
+  if (!mobilePerformanceMode) drawNebula(camera, zoom);
   drawGrid(camera, zoom);
   drawBoundary(screen, zoom);
   drawZones(screen, zoom);
@@ -505,6 +507,7 @@ function monitorFrameRate(now) {
   if (fps < MIN_FPS) {
     stableFpsWindows = 0;
     renderQuality = 0;
+    if (fps < 46) ultraPerformanceMode = true;
     if (renderDpr > minRenderDpr) { renderDpr = Math.max(minRenderDpr, renderDpr - .15); resize(); }
     document.documentElement.classList.add('performance-mode');
   } else if (!mobilePerformanceMode && fps >= TARGET_FPS - 2) {
@@ -548,9 +551,12 @@ function drawCreature(player, visualPosition, trail, screen, zoom, own, leaderSc
     context.beginPath(); context.strokeStyle = '#ff4d8d99'; context.lineWidth = 2 * renderDpr;
     context.arc(point.x, point.y, visualRadius * zoom * 1.55, 0, Math.PI * 2); context.stroke();
   }
-  context.fillStyle = '#fff'; context.font = `700 ${12 * renderDpr}px system-ui`; context.textAlign = 'center';
-  context.shadowColor = '#02040b'; context.shadowBlur = renderQuality > 0 ? 4 * renderDpr : 0;
-  context.fillText(player.nickname, point.x, point.y - visualRadius * zoom * 1.55 - 8 * renderDpr);
+  const showLabel = !ultraPerformanceMode || own || !player.isBot;
+  if (showLabel) {
+    context.fillStyle = '#fff'; context.font = `700 ${12 * renderDpr}px system-ui`; context.textAlign = 'center';
+    context.shadowColor = '#02040b'; context.shadowBlur = renderQuality > 0 ? 4 * renderDpr : 0;
+    context.fillText(player.nickname, point.x, point.y - visualRadius * zoom * 1.55 - 8 * renderDpr);
+  }
   context.shadowBlur = 0;
 }
 
@@ -594,7 +600,9 @@ function drawZones(screen, zoom) {
     const margin = zone.radius * zoom;
     if (point.x < -margin || point.y < -margin || point.x > canvas.width + margin || point.y > canvas.height + margin) continue;
     context.beginPath(); context.fillStyle = style[0]; context.strokeStyle = style[1]; context.lineWidth = 2 * renderDpr;
-    context.arc(point.x, point.y, zone.radius * zoom, 0, Math.PI * 2); context.fill(); context.stroke();
+    context.arc(point.x, point.y, zone.radius * zoom, 0, Math.PI * 2);
+    if (!mobilePerformanceMode) context.fill();
+    context.stroke();
     context.fillStyle = style[1]; context.font = `800 ${10 * renderDpr}px system-ui`; context.textAlign = 'center';
     context.fillText(style[2], point.x, point.y - zone.radius * zoom + 18 * renderDpr);
   }
@@ -602,7 +610,7 @@ function drawZones(screen, zoom) {
 
 function drawGrid(camera, zoom) {
   context.strokeStyle = '#111a40'; context.lineWidth = renderDpr;
-  const step = 100 * zoom, startX = canvas.width / 2 - (camera.x * zoom) % step, startY = canvas.height / 2 - (camera.y * zoom) % step;
+  const step = (mobilePerformanceMode ? 200 : 100) * zoom, startX = canvas.width / 2 - (camera.x * zoom) % step, startY = canvas.height / 2 - (camera.y * zoom) % step;
   context.beginPath();
   for (let x = startX; x < canvas.width; x += step) { context.moveTo(x, 0); context.lineTo(x, canvas.height); }
   for (let y = startY; y < canvas.height; y += step) { context.moveTo(0, y); context.lineTo(canvas.width, y); }

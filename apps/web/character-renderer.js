@@ -112,10 +112,9 @@
     const { x, y, radius, skinId = 'starter', alpha = 1 } = options;
     const sprite = fastSprite(skinId);
     const size = radius * 3.5;
-    ctx.save();
     ctx.globalAlpha = alpha;
     ctx.drawImage(sprite, x - size / 2, y - size / 2, size, size);
-    ctx.restore();
+    ctx.globalAlpha = 1;
   }
 
   window.SwarmCharacters = { skins, drawCharacter, drawCharacterFast };
