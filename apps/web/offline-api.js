@@ -78,7 +78,7 @@
       if (!state.owned.includes(itemId)) return response({ error: 'NOT_OWNED' }, 409);
       state.equippedSkin = itemId; write(state); return response({ equippedSkin: itemId });
     }
-    if (path === '/api/v1/matchmaking/queue' && method === 'POST') return response({ offline: true, playerId: state.id });
+    if (path.startsWith('/api/v1/matchmaking/queue') && method === 'POST') return response({ offline: true, playerId: state.id });
     if (path === '/api/v1/rewards/match' && method === 'POST') {
       const data = body(options), score = Math.max(0, Number(data.score) || 0), kills = Math.max(0, Number(data.kills) || 0);
       const coins = Math.max(10, Math.floor(score / 10) + kills * 15), xp = Math.max(10, Math.floor(score / 8));

@@ -87,5 +87,36 @@
     ctx.restore();
   }
 
-  window.SwarmCharacters = { skins, drawCharacter };
+  const fastSprites = new Map();
+  function fastSprite(skinId) {
+    const resolvedSkinId = skins[skinId] ? skinId : 'starter';
+    if (fastSprites.has(resolvedSkinId)) return fastSprites.get(resolvedSkinId);
+    const sprite = document.createElement('canvas');
+    sprite.width = 192;
+    sprite.height = 192;
+    const spriteContext = sprite.getContext('2d', { alpha: true });
+    drawCharacter(spriteContext, {
+      x: 96,
+      y: 96,
+      radius: 55,
+      skinId: resolvedSkinId,
+      time: 0,
+      quality: 1,
+      glow: false
+    });
+    fastSprites.set(resolvedSkinId, sprite);
+    return sprite;
+  }
+
+  function drawCharacterFast(ctx, options) {
+    const { x, y, radius, skinId = 'starter', alpha = 1 } = options;
+    const sprite = fastSprite(skinId);
+    const size = radius * 3.5;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(sprite, x - size / 2, y - size / 2, size, size);
+    ctx.restore();
+  }
+
+  window.SwarmCharacters = { skins, drawCharacter, drawCharacterFast };
 })();
