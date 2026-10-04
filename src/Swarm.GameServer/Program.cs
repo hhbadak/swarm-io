@@ -44,7 +44,19 @@ static async Task ReceiveInputs(WebSocket socket, ArenaRoom room, Guid playerId,
     var buffer = new byte[2048];
     while (socket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
     {
-        var result = await socket.ReceiveAsync(buffer, cancellationToken);
+        WebSocketReceiveResult result;
+        try
+        {
+            result = await socket.ReceiveAsync(buffer, cancellationToken);
+        }
+        catch (WebSocketException)
+        {
+            return;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
         if (result.MessageType == WebSocketMessageType.Close)
         { await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed", cancellationToken); return; }
         if (result.MessageType != WebSocketMessageType.Text || !result.EndOfMessage) continue;
