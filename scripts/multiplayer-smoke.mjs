@@ -28,12 +28,17 @@ const assignments = await Promise.all(sessions.map(session => request(`/api/v1/m
 const sockets = assignments.map(assignment => new WebSocket(`${assignment.websocketUrl}?ticket=${encodeURIComponent(assignment.ticket)}`));
 const snapshots = await Promise.all(sockets.map(socket => new Promise((resolve, reject) => {
   const timeout = setTimeout(() => reject(new Error('Timed out waiting for the three-player snapshot.')), 8000);
+  let fullState;
+  let threePlayerState;
   socket.addEventListener('error', () => { clearTimeout(timeout); reject(new Error('WebSocket connection failed.')); }, { once: true });
   socket.addEventListener('message', event => {
     const message = JSON.parse(event.data);
-    if (message.type !== 'snapshot' || message.realPlayers !== 3) return;
+    if (message.type !== 'snapshot') return;
+    if (Array.isArray(message.energy)) fullState = message;
+    if (message.realPlayers === 3) threePlayerState = message;
+    if (!fullState || !threePlayerState) return;
     clearTimeout(timeout);
-    resolve(message);
+    resolve({ fullState, threePlayerState });
   });
 })));
 
@@ -51,14 +56,15 @@ const compactSnapshot = await new Promise((resolve, reject) => {
 
 for (const socket of sockets) socket.close();
 const playerIds = new Set(sessions.map(session => session.player.id.toLowerCase()));
-const sample = snapshots[0];
+const sample = snapshots[0].threePlayerState;
+const fullState = snapshots[0].fullState;
 if (sample.capacity !== 50) throw new Error(`Expected capacity 50, received ${sample.capacity}.`);
 if (sample.realPlayers !== 3 || sample.bots !== 21 || sample.players.length !== 24)
   throw new Error(`Expected 3 real + 21 bots, received ${sample.realPlayers} real + ${sample.bots} bots.`);
 if (sample.roomCode !== room.roomCode) throw new Error('Players did not join the requested friend room.');
-if (!Array.isArray(sample.energy) || sample.energy.length !== 300) throw new Error('Initial snapshot must contain the complete energy state.');
+if (!Array.isArray(fullState.energy) || fullState.energy.length !== 300) throw new Error('Initial snapshot must contain the complete energy state.');
 if (!Number.isFinite(sample.serverTimeMs)) throw new Error('Snapshot server timestamp is missing.');
-const fullSnapshotBytes = JSON.stringify(sample).length;
+const fullSnapshotBytes = JSON.stringify({ ...sample, energy: fullState.energy, zones: fullState.zones }).length;
 if (compactSnapshot.bytes >= fullSnapshotBytes * .55)
   throw new Error(`Compact snapshot is unexpectedly large (${compactSnapshot.bytes}/${fullSnapshotBytes} bytes).`);
 for (const playerId of playerIds) {
