@@ -36,8 +36,9 @@ const BASE_RADIUS = 22;
 const TARGET_FPS = 60;
 const MIN_FPS = 50;
 const FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
-const INTERPOLATION_DELAY_MS = 100;
-const MAX_EXTRAPOLATION_MS = 80;
+const BASE_INTERPOLATION_DELAY_MS = 150;
+const MAX_INTERPOLATION_DELAY_MS = 300;
+const MAX_EXTRAPOLATION_MS = 25;
 const mobilePerformanceMode = window.SwarmRuntime.native || matchMedia('(pointer: coarse)').matches;
 const maxRenderDpr = Math.min(devicePixelRatio, 2);
 const minRenderDpr = mobilePerformanceMode ? .75 : 1;
@@ -53,6 +54,15 @@ let pendingHudUpdate = false;
 let lastInputSentAt = 0;
 let lastRenderedAt = 0;
 let frameDeltaMs = FRAME_INTERVAL_MS;
+let interpolationDelayMs = BASE_INTERPOLATION_DELAY_MS;
+let snapshotJitterMs = 0;
+let lastSnapshotReceivedAt = 0;
+let lastSnapshotServerTimeMs = 0;
+let localPredictedPosition;
+let localPredictionUpdatedAt = 0;
+let predictedDashUntil = 0;
+let localWasMoving = false;
+let localStoppedAt = 0;
 if (mobilePerformanceMode) document.documentElement.classList.add('performance-mode');
 const SKIN_TRAITS = {
   starter: { boundaryPenalty: .8 },
@@ -97,7 +107,19 @@ async function connect() {
   const assignment = await response.json();
   if (assignment.offline) { startLocalArena(); return; }
   socket = new WebSocket(`${assignment.websocketUrl}?ticket=${encodeURIComponent(assignment.ticket)}`);
-  socket.addEventListener('open', () => { connectionNode.textContent = matchRoomCode ? `CANLI · ${matchRoomCode}` : 'CANLI'; sendInput(); });
+  socket.addEventListener('open', () => {
+    snapshotFrames.length = 0;
+    localPredictedPosition = undefined;
+    localPredictionUpdatedAt = 0;
+    localWasMoving = false;
+    localStoppedAt = 0;
+    lastSnapshotReceivedAt = 0;
+    lastSnapshotServerTimeMs = 0;
+    snapshotJitterMs = 0;
+    interpolationDelayMs = BASE_INTERPOLATION_DELAY_MS;
+    connectionNode.textContent = matchRoomCode ? `CANLI · ${matchRoomCode}` : 'CANLI';
+    sendInput();
+  });
   socket.addEventListener('close', event => {
     if (event.code === 1008) { connectionNode.textContent = 'ODA DOLU / KOD GEÇERSİZ'; return; }
     connectionNode.textContent = 'YENİDEN BAĞLANIYOR'; reconnectTimer = setTimeout(connect, 1200);
@@ -137,6 +159,7 @@ function sendInput(dash = false, ability = null, force = false) {
     return;
   }
   const now = performance.now();
+  if (dash) predictedDashUntil = now + 300;
   if (!force && !dash && !ability && now - lastInputSentAt < 32) return;
   if (socket?.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify({ ...input, dash, ability }));
@@ -468,15 +491,66 @@ function escapeHtml(value) {
 function recordSnapshotFrame(message, receivedAt) {
   if (!Array.isArray(message.players)) return;
   const serverTimeMs = Number.isFinite(message.serverTimeMs) ? message.serverTimeMs : Number(message.tick || 0) * 50;
+  if (lastSnapshotReceivedAt > 0 && serverTimeMs > lastSnapshotServerTimeMs) {
+    const arrivalInterval = receivedAt - lastSnapshotReceivedAt;
+    const serverInterval = serverTimeMs - lastSnapshotServerTimeMs;
+    const jitterSample = Math.min(250, Math.abs(arrivalInterval - serverInterval));
+    snapshotJitterMs += (jitterSample - snapshotJitterMs) * .16;
+    interpolationDelayMs = Math.max(BASE_INTERPOLATION_DELAY_MS, Math.min(MAX_INTERPOLATION_DELAY_MS, BASE_INTERPOLATION_DELAY_MS + snapshotJitterMs * 2.5));
+  }
+  lastSnapshotReceivedAt = receivedAt;
+  lastSnapshotServerTimeMs = serverTimeMs;
   snapshotFrames.push({ receivedAt, serverTimeMs, players: message.players, byId: new Map(message.players.map(player => [player.id, player])) });
   while (snapshotFrames.length > 24) snapshotFrames.shift();
+}
+
+function predictOwnPlayer(player, latest, now) {
+  const elapsed = Math.min(50, Math.max(0, localPredictionUpdatedAt ? now - localPredictionUpdatedAt : 0));
+  const inputLength = Math.hypot(input.x, input.y);
+  const moving = inputLength > .05;
+  const direction = moving ? { x: input.x / inputLength, y: input.y / inputLength } : { x: 0, y: 0 };
+  if (!moving && localWasMoving) localStoppedAt = now;
+  localWasMoving = moving;
+  const dashMultiplier = now < predictedDashUntil ? 1.85 * traitFor(player).dashSpeed : 1;
+  const zoneMultiplier = insideZone(player.position, 'speed') ? 1.3 : 1;
+  const speed = movementSpeedFor(player.radius, traitFor(player).speed) * dashMultiplier * zoneMultiplier;
+  const snapshotAge = Math.min(250, Math.max(0, now - latest.receivedAt));
+  const authoritativeEstimate = {
+    x: player.position.x + direction.x * speed * snapshotAge / 1000,
+    y: player.position.y + direction.y * speed * snapshotAge / 1000
+  };
+
+  if (!localPredictedPosition || Math.hypot(localPredictedPosition.x - player.position.x, localPredictedPosition.y - player.position.y) > 260) {
+    localPredictedPosition = { ...authoritativeEstimate };
+  } else {
+    localPredictedPosition.x += direction.x * speed * elapsed / 1000;
+    localPredictedPosition.y += direction.y * speed * elapsed / 1000;
+    const correction = 1 - Math.exp(-elapsed / 240);
+    const errorX = authoritativeEstimate.x - localPredictedPosition.x;
+    const errorY = authoritativeEstimate.y - localPredictedPosition.y;
+    if (moving) {
+      // Never pull against the current input direction: delayed server packets must not
+      // make the local character visibly step backwards. Perpendicular drift is safe to correct.
+      const along = errorX * direction.x + errorY * direction.y;
+      const acceptedAlong = Math.max(0, along);
+      localPredictedPosition.x += (errorX - along * direction.x + acceptedAlong * direction.x) * correction;
+      localPredictedPosition.y += (errorY - along * direction.y + acceptedAlong * direction.y) * correction;
+    } else if (now - localStoppedAt > 400) {
+      localPredictedPosition.x += errorX * correction;
+      localPredictedPosition.y += errorY * correction;
+    }
+  }
+  localPredictedPosition.x = Math.max(player.radius, Math.min(snapshot.arenaWidth - player.radius, localPredictedPosition.x));
+  localPredictedPosition.y = Math.max(player.radius, Math.min(snapshot.arenaHeight - player.radius, localPredictedPosition.y));
+  localPredictionUpdatedAt = now;
+  return { ...player, position: { ...localPredictedPosition } };
 }
 
 function renderPlayers(now) {
   if (localMode || snapshotFrames.length < 2) return snapshot.players ?? [];
   const latest = snapshotFrames.at(-1);
   const previous = snapshotFrames.at(-2);
-  const targetTime = latest.serverTimeMs + (now - latest.receivedAt) - INTERPOLATION_DELAY_MS;
+  const targetTime = latest.serverTimeMs + (now - latest.receivedAt) - interpolationDelayMs;
   let before = snapshotFrames[0];
   let after = latest;
   for (let index = 1; index < snapshotFrames.length; index++) {
@@ -491,14 +565,7 @@ function renderPlayers(now) {
 
   return latest.players.map(player => {
     if (player.id.toLowerCase() === playerId?.toLowerCase()) {
-      const predictionMs = Math.min(100, Math.max(0, now - latest.receivedAt));
-      const length = Math.hypot(input.x, input.y);
-      if (length <= .05) return player;
-      const speed = movementSpeedFor(player.radius, traitFor(player).speed);
-      return { ...player, position: {
-        x: player.position.x + input.x / length * speed * predictionMs / 1000,
-        y: player.position.y + input.y / length * speed * predictionMs / 1000
-      } };
+      return predictOwnPlayer(player, latest, now);
     }
     const first = before.byId.get(player.id);
     const second = after.byId.get(player.id);
@@ -528,7 +595,7 @@ function render(frameTime = performance.now()) {
   monitorFrameRate(frameTime);
   const playersForRender = renderPlayers(frameTime);
   const own = playersForRender.find(player => player.id.toLowerCase() === playerId?.toLowerCase()) ?? lastOwnPlayer;
-  const ownVisualPosition = own ? smoothPosition(own, 42) : null;
+  const ownVisualPosition = own ? (localMode ? smoothPosition(own, 42) : own.position) : null;
   const camera = ownVisualPosition ?? own?.position ?? { x: 800, y: 450 };
   const zoom = dpr * Math.max(0.72, 1.08 - ((own?.radius ?? 18) - 18) * 0.006);
   const screen = position => ({ x: canvas.width / 2 + (position.x - camera.x) * zoom, y: canvas.height / 2 + (position.y - camera.y) * zoom });
@@ -544,7 +611,7 @@ function render(frameTime = performance.now()) {
   const alivePlayers = playersForRender.filter(player => player.alive);
   const leaderScore = alivePlayers.reduce((highest, player) => Math.max(highest, player.score), 0);
   for (const player of alivePlayers) {
-    const visualPosition = player.id === own?.id ? ownVisualPosition : smoothPosition(player, 55);
+    const visualPosition = player.id === own?.id ? ownVisualPosition : smoothPosition(player, 85);
     const point = screen(visualPosition ?? player.position);
     const visibleMargin = Math.max(100 * dpr, player.radius * zoom * 2);
     if (point.x < -visibleMargin || point.y < -visibleMargin || point.x > canvas.width + visibleMargin || point.y > canvas.height + visibleMargin) continue;

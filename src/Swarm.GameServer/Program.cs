@@ -249,6 +249,9 @@ public sealed class ArenaRoom
         ArenaSnapshot snapshot;
         lock (_gate) snapshot = IsFinished ? _simulation.Snapshot() : _simulation.Step(elapsed);
         var matchFinished = IsFinished;
+        // Keep the authoritative simulation at 20 Hz but broadcast at 10 Hz.
+        // Interpolation still renders at 60 FPS while avoiding bursty socket back-pressure.
+        if (!matchFinished && snapshot.Tick % 2 != 0) return;
         var currentEnergyIds = snapshot.Energy.Select(orb => orb.Id).ToHashSet();
         var energyAdded = snapshot.Energy.Where(orb => !_lastEnergyIds.Contains(orb.Id)).ToArray();
         var energyRemoved = _lastEnergyIds.Where(id => !currentEnergyIds.Contains(id)).ToArray();
