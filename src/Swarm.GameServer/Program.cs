@@ -75,6 +75,7 @@ public sealed class ArenaConnection(Guid playerId, string roomId, WebSocket sock
     public WebSocket Socket { get; } = socket;
     public SemaphoreSlim SendLock { get; } = new(1, 1);
     public bool ResultSent { get; set; }
+    public bool NeedsFullState { get; set; } = true;
     public DateTimeOffset ConnectedAt { get; } = DateTimeOffset.UtcNow;
 }
 
@@ -145,7 +146,7 @@ public sealed class ArenaRoomManager
     {
         ArenaRoom[] rooms;
         lock (_gate) rooms = _rooms.Values.ToArray();
-        foreach (var room in rooms) await room.TickAndBroadcast(elapsed, cancellationToken);
+        await Task.WhenAll(rooms.Select(room => room.TickAndBroadcast(elapsed, cancellationToken)));
 
         lock (_gate)
         {
@@ -168,11 +169,15 @@ public sealed class ArenaRoomManager
 public sealed class ArenaRoom
 {
     public const int MatchDurationSeconds = 5 * 60;
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
     private readonly object _gate = new();
     private readonly ArenaSimulation _simulation = new();
     private readonly ConcurrentDictionary<Guid, ArenaConnection> _connections = new();
     private readonly ConcurrentDictionary<Guid, DateTimeOffset> _disconnectDeadlines = new();
+    private readonly HashSet<Guid> _lastEnergyIds = new();
     private readonly SwarmTokenService _tokens;
     private readonly DateTimeOffset _startedAt = DateTimeOffset.UtcNow;
     private DateTimeOffset _lastActivity = DateTimeOffset.UtcNow;
@@ -232,7 +237,14 @@ public sealed class ArenaRoom
         ArenaSnapshot snapshot;
         lock (_gate) snapshot = IsFinished ? _simulation.Snapshot() : _simulation.Step(elapsed);
         var matchFinished = IsFinished;
-        var payload = JsonSerializer.SerializeToUtf8Bytes(new
+        var currentEnergyIds = snapshot.Energy.Select(orb => orb.Id).ToHashSet();
+        var energyAdded = snapshot.Energy.Where(orb => !_lastEnergyIds.Contains(orb.Id)).ToArray();
+        var energyRemoved = _lastEnergyIds.Where(id => !currentEnergyIds.Contains(id)).ToArray();
+        _lastEnergyIds.Clear();
+        _lastEnergyIds.UnionWith(currentEnergyIds);
+        var periodicFullState = snapshot.Tick % 40 == 0;
+
+        object CreateMessage(bool fullState) => new
         {
             type = "snapshot",
             roomId = Id,
@@ -246,15 +258,26 @@ public sealed class ArenaRoom
             matchFinished,
             arenaWidth = ArenaSimulation.ArenaWidth,
             arenaHeight = ArenaSimulation.ArenaHeight,
+            serverTimeMs = snapshot.Tick * 50,
             snapshot.Tick,
             snapshot.Players,
-            energy = snapshot.Tick % 5 == 0 ? snapshot.Energy : null,
-            zones = snapshot.Tick % 20 == 0 ? snapshot.Zones : null,
+            energy = fullState ? snapshot.Energy : null,
+            energyAdded = !fullState && energyAdded.Length > 0 ? energyAdded : null,
+            energyRemoved = !fullState && energyRemoved.Length > 0 ? energyRemoved : null,
+            zones = fullState || snapshot.Tick % 100 == 0 ? snapshot.Zones : null,
             snapshot.Event
-        }, JsonOptions);
-        foreach (var connection in _connections.Values)
+        };
+
+        var deltaPayload = JsonSerializer.SerializeToUtf8Bytes(CreateMessage(periodicFullState), JsonOptions);
+        var requiresFullPayload = !periodicFullState && _connections.Values.Any(connection => connection.NeedsFullState);
+        var fullPayload = requiresFullPayload
+            ? JsonSerializer.SerializeToUtf8Bytes(CreateMessage(true), JsonOptions)
+            : deltaPayload;
+        var sendTasks = _connections.Values.Select(async connection =>
         {
-            await TrySend(connection, payload, cancellationToken, waitForLock: false);
+            var needsFullState = connection.NeedsFullState && !periodicFullState;
+            var sent = await TrySend(connection, needsFullState ? fullPayload : deltaPayload, cancellationToken, waitForLock: false);
+            if (sent) connection.NeedsFullState = false;
 
             var player = snapshot.Players.FirstOrDefault(candidate => candidate.Id == connection.PlayerId);
             if (player is not null && (!player.Alive || matchFinished) && !connection.ResultSent)
@@ -268,7 +291,8 @@ public sealed class ArenaRoom
                 var resultPayload = JsonSerializer.SerializeToUtf8Bytes(new { type = "gameOver", reason, score = player.Score, kills = player.Kills, coins, rank, durationSeconds, resultToken }, JsonOptions);
                 connection.ResultSent = await TrySend(connection, resultPayload, cancellationToken, waitForLock: true);
             }
-        }
+        });
+        await Task.WhenAll(sendTasks);
     }
 
     private static async Task<bool> TrySend(ArenaConnection connection, byte[] payload, CancellationToken cancellationToken, bool waitForLock)

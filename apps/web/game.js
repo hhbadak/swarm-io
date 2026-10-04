@@ -12,6 +12,8 @@ const matchParams = new URLSearchParams(location.search);
 const matchMode = matchParams.get('mode') === 'private' ? 'private' : 'public';
 const matchRoomCode = (matchParams.get('room') || '').trim().toUpperCase();
 let snapshot = { players: [], energy: [], zones: [], arenaWidth: 3200, arenaHeight: 1800 };
+const energyById = new Map();
+const snapshotFrames = [];
 let socket;
 let input = { x: 0, y: 0 };
 let reconnectTimer;
@@ -33,11 +35,14 @@ const visualPositions = new Map();
 const BASE_RADIUS = 22;
 const TARGET_FPS = 60;
 const MIN_FPS = 50;
+const FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
+const INTERPOLATION_DELAY_MS = 100;
+const MAX_EXTRAPOLATION_MS = 80;
 const mobilePerformanceMode = window.SwarmRuntime.native || matchMedia('(pointer: coarse)').matches;
-const maxRenderDpr = Math.min(devicePixelRatio, mobilePerformanceMode ? .85 : 2);
-const minRenderDpr = mobilePerformanceMode ? .65 : 1;
-let renderDpr = maxRenderDpr;
-let renderQuality = mobilePerformanceMode ? 0 : 2;
+const maxRenderDpr = Math.min(devicePixelRatio, 2);
+const minRenderDpr = mobilePerformanceMode ? .75 : 1;
+let renderDpr = mobilePerformanceMode ? Math.min(maxRenderDpr, 1) : maxRenderDpr;
+let renderQuality = mobilePerformanceMode ? 1 : 2;
 let ultraPerformanceMode = false;
 let cachedNebula;
 let fpsWindowStartedAt = performance.now();
@@ -46,6 +51,8 @@ let stableFpsWindows = 0;
 let lastHudUpdateAt = 0;
 let pendingHudUpdate = false;
 let lastInputSentAt = 0;
+let lastRenderedAt = 0;
+let frameDeltaMs = FRAME_INTERVAL_MS;
 if (mobilePerformanceMode) document.documentElement.classList.add('performance-mode');
 const SKIN_TRAITS = {
   starter: { boundaryPenalty: .8 },
@@ -98,12 +105,21 @@ async function connect() {
   socket.addEventListener('message', event => {
     const message = JSON.parse(event.data);
     if (message.type === 'snapshot') {
+      const receivedAt = performance.now();
+      if (Array.isArray(message.energy)) {
+        energyById.clear();
+        for (const orb of message.energy) energyById.set(orb.id, orb);
+      } else {
+        for (const id of message.energyRemoved ?? []) energyById.delete(id);
+        for (const orb of message.energyAdded ?? []) energyById.set(orb.id, orb);
+      }
       snapshot = {
         ...snapshot,
         ...message,
-        energy: Array.isArray(message.energy) ? message.energy : snapshot.energy,
+        energy: energyById.size > 0 ? Array.from(energyById.values()) : snapshot.energy,
         zones: Array.isArray(message.zones) ? message.zones : snapshot.zones
       };
+      recordSnapshotFrame(message, receivedAt);
       scheduleHudUpdate();
     }
     if (message.type === 'gameOver') handleGameOver(message);
@@ -153,6 +169,8 @@ function startLocalArena() {
     ],
     energy: Array.from({ length: 260 }, (_, index) => offlineOrb(index))
   };
+  energyById.clear();
+  for (const orb of snapshot.energy) energyById.set(orb.id, orb);
   let previous = performance.now();
   localArenaTimer = setInterval(() => {
     const now = performance.now(), dt = Math.min(.05, (now - previous) / 1000); previous = now;
@@ -447,33 +465,92 @@ function escapeHtml(value) {
   return node.innerHTML;
 }
 
-function render() {
+function recordSnapshotFrame(message, receivedAt) {
+  if (!Array.isArray(message.players)) return;
+  const serverTimeMs = Number.isFinite(message.serverTimeMs) ? message.serverTimeMs : Number(message.tick || 0) * 50;
+  snapshotFrames.push({ receivedAt, serverTimeMs, players: message.players, byId: new Map(message.players.map(player => [player.id, player])) });
+  while (snapshotFrames.length > 24) snapshotFrames.shift();
+}
+
+function renderPlayers(now) {
+  if (localMode || snapshotFrames.length < 2) return snapshot.players ?? [];
+  const latest = snapshotFrames.at(-1);
+  const previous = snapshotFrames.at(-2);
+  const targetTime = latest.serverTimeMs + (now - latest.receivedAt) - INTERPOLATION_DELAY_MS;
+  let before = snapshotFrames[0];
+  let after = latest;
+  for (let index = 1; index < snapshotFrames.length; index++) {
+    if (snapshotFrames[index].serverTimeMs < targetTime) { before = snapshotFrames[index]; continue; }
+    after = snapshotFrames[index];
+    break;
+  }
+  const span = Math.max(1, after.serverTimeMs - before.serverTimeMs);
+  const alpha = Math.max(0, Math.min(1, (targetTime - before.serverTimeMs) / span));
+  const extrapolationMs = targetTime > latest.serverTimeMs ? Math.min(MAX_EXTRAPOLATION_MS, targetTime - latest.serverTimeMs) : 0;
+  const previousSpan = Math.max(1, latest.serverTimeMs - previous.serverTimeMs);
+
+  return latest.players.map(player => {
+    if (player.id.toLowerCase() === playerId?.toLowerCase()) {
+      const predictionMs = Math.min(100, Math.max(0, now - latest.receivedAt));
+      const length = Math.hypot(input.x, input.y);
+      if (length <= .05) return player;
+      const speed = movementSpeedFor(player.radius, traitFor(player).speed);
+      return { ...player, position: {
+        x: player.position.x + input.x / length * speed * predictionMs / 1000,
+        y: player.position.y + input.y / length * speed * predictionMs / 1000
+      } };
+    }
+    const first = before.byId.get(player.id);
+    const second = after.byId.get(player.id);
+    if (first && second && targetTime <= latest.serverTimeMs) {
+      return { ...player, radius: first.radius + (second.radius - first.radius) * alpha, position: {
+        x: first.position.x + (second.position.x - first.position.x) * alpha,
+        y: first.position.y + (second.position.y - first.position.y) * alpha
+      } };
+    }
+    const prior = previous.byId.get(player.id);
+    if (!prior || extrapolationMs <= 0) return player;
+    return { ...player, position: {
+      x: player.position.x + (player.position.x - prior.position.x) * extrapolationMs / previousSpan,
+      y: player.position.y + (player.position.y - prior.position.y) * extrapolationMs / previousSpan
+    } };
+  });
+}
+
+function render(frameTime = performance.now()) {
+  requestAnimationFrame(render);
+  if (document.hidden) return;
+  const elapsedSinceRender = frameTime - lastRenderedAt;
+  if (lastRenderedAt && elapsedSinceRender < FRAME_INTERVAL_MS - 1.2) return;
+  frameDeltaMs = Math.min(50, lastRenderedAt ? elapsedSinceRender : FRAME_INTERVAL_MS);
+  lastRenderedAt = frameTime;
   const dpr = renderDpr;
-  const frameTime = performance.now();
   monitorFrameRate(frameTime);
-  const own = (snapshot.players ?? []).find(player => player.id.toLowerCase() === playerId?.toLowerCase()) ?? lastOwnPlayer;
-  const ownVisualPosition = own ? smoothPosition(own, .34) : null;
+  const playersForRender = renderPlayers(frameTime);
+  const own = playersForRender.find(player => player.id.toLowerCase() === playerId?.toLowerCase()) ?? lastOwnPlayer;
+  const ownVisualPosition = own ? smoothPosition(own, 42) : null;
   const camera = ownVisualPosition ?? own?.position ?? { x: 800, y: 450 };
   const zoom = dpr * Math.max(0.72, 1.08 - ((own?.radius ?? 18) - 18) * 0.006);
   const screen = position => ({ x: canvas.width / 2 + (position.x - camera.x) * zoom, y: canvas.height / 2 + (position.y - camera.y) * zoom });
 
   context.fillStyle = '#030611';
   context.fillRect(0, 0, canvas.width, canvas.height);
-  if (!mobilePerformanceMode) drawNebula(camera, zoom);
+  if (!mobilePerformanceMode || renderQuality >= 2) drawNebula(camera, zoom);
   drawGrid(camera, zoom);
   drawBoundary(screen, zoom);
   drawZones(screen, zoom);
   drawEnergy(camera, zoom);
 
-  const alivePlayers = (snapshot.players ?? []).filter(player => player.alive);
+  const alivePlayers = playersForRender.filter(player => player.alive);
   const leaderScore = alivePlayers.reduce((highest, player) => Math.max(highest, player.score), 0);
   for (const player of alivePlayers) {
-    const visualPosition = player.id === own?.id ? ownVisualPosition : smoothPosition(player, .28);
+    const visualPosition = player.id === own?.id ? ownVisualPosition : smoothPosition(player, 55);
     const point = screen(visualPosition ?? player.position);
     const visibleMargin = Math.max(100 * dpr, player.radius * zoom * 2);
     if (point.x < -visibleMargin || point.y < -visibleMargin || point.x > canvas.width + visibleMargin || point.y > canvas.height + visibleMargin) continue;
-    const trail = mobilePerformanceMode ? [] : (trails.get(player.id) ?? []);
-    if (!mobilePerformanceMode) {
+    const showTrail = !mobilePerformanceMode || (renderQuality >= 2 && (player.id === own?.id || !player.isBot));
+    const trail = showTrail ? (trails.get(player.id) ?? []) : [];
+    if (showTrail) {
       const trailHead = trail[0];
       if (!trailHead || Math.hypot(trailHead.x - visualPosition.x, trailHead.y - visualPosition.y) > 2) trail.unshift({ ...visualPosition });
       const trailLimit = renderQuality > 0 ? 12 : 6;
@@ -482,11 +559,11 @@ function render() {
     }
     drawCreature(player, visualPosition, trail, screen, zoom, player.id.toLowerCase() === playerId?.toLowerCase(), leaderScore, frameTime);
   }
-  requestAnimationFrame(render);
 }
 
-function smoothPosition(player, amount) {
+function smoothPosition(player, responseMs) {
   const current = visualPositions.get(player.id) ?? { ...player.position };
+  const amount = 1 - Math.exp(-frameDeltaMs / responseMs);
   current.x += (player.position.x - current.x) * amount;
   current.y += (player.position.y - current.y) * amount;
   visualPositions.set(player.id, current);
@@ -510,15 +587,16 @@ function monitorFrameRate(now) {
     if (fps < 46) ultraPerformanceMode = true;
     if (renderDpr > minRenderDpr) { renderDpr = Math.max(minRenderDpr, renderDpr - .15); resize(); }
     document.documentElement.classList.add('performance-mode');
-  } else if (!mobilePerformanceMode && fps >= TARGET_FPS - 2) {
+  } else if (fps >= TARGET_FPS - 4) {
     stableFpsWindows++;
-    if (stableFpsWindows >= 5 && renderDpr < maxRenderDpr) {
+    if (stableFpsWindows >= 3 && renderDpr < maxRenderDpr) {
       renderDpr = Math.min(maxRenderDpr, renderDpr + .1);
-      renderQuality = renderDpr >= maxRenderDpr ? 1 : renderQuality;
+      if (renderDpr >= maxRenderDpr) renderQuality = mobilePerformanceMode ? 2 : renderQuality;
       if (renderDpr >= maxRenderDpr) document.documentElement.classList.remove('performance-mode');
       resize();
       stableFpsWindows = 0;
     }
+    if (stableFpsWindows >= 2) ultraPerformanceMode = false;
   } else stableFpsWindows = 0;
 }
 
@@ -526,7 +604,8 @@ function drawCreature(player, visualPosition, trail, screen, zoom, own, leaderSc
   const skin = window.SwarmCharacters?.skins[player.skinId] ?? window.SwarmCharacters?.skins.starter;
   const color = skin?.primary ?? (own ? '#59e4ed' : '#b69cff');
   const previousRadius = visualRadii.get(player.id) ?? player.radius;
-  const visualRadius = previousRadius + (player.radius - previousRadius) * .16;
+  const radiusAmount = 1 - Math.exp(-frameDeltaMs / 90);
+  const visualRadius = previousRadius + (player.radius - previousRadius) * radiusAmount;
   visualRadii.set(player.id, visualRadius);
   for (let index = trail.length - 1; index >= 3; index -= 3) {
     const point = screen(trail[index]);
@@ -567,20 +646,22 @@ function drawEnergy(camera, zoom) {
     epic: ['#c49cff', 7.5],
     core: ['#f5c96c', 10]
   };
+  const visibleByKind = { common: [], rare: [], epic: [], core: [] };
+  for (const orb of snapshot.energy ?? []) {
+    const x = canvas.width / 2 + (orb.position.x - camera.x) * zoom;
+    const y = canvas.height / 2 + (orb.position.y - camera.y) * zoom;
+    if (x < -20 || y < -20 || x > canvas.width + 20 || y > canvas.height + 20) continue;
+    (visibleByKind[orb.kind] ?? visibleByKind.common).push({ x, y });
+  }
   for (const [kind, style] of Object.entries(styles)) {
     context.beginPath();
-    let visible = false;
-    for (const orb of snapshot.energy ?? []) {
-      if ((orb.kind || 'common') !== kind) continue;
-      const x = canvas.width / 2 + (orb.position.x - camera.x) * zoom;
-      const y = canvas.height / 2 + (orb.position.y - camera.y) * zoom;
-      if (x < -20 || y < -20 || x > canvas.width + 20 || y > canvas.height + 20) continue;
+    const points = visibleByKind[kind];
+    for (const { x, y } of points) {
       const radius = style[1] * zoom;
       context.moveTo(x + radius, y);
       context.arc(x, y, radius, 0, Math.PI * 2);
-      visible = true;
     }
-    if (!visible) continue;
+    if (points.length === 0) continue;
     context.fillStyle = style[0];
     context.shadowColor = style[0];
     context.shadowBlur = renderQuality > 0 && kind !== 'common' ? 10 * renderDpr : 0;
@@ -601,7 +682,7 @@ function drawZones(screen, zoom) {
     if (point.x < -margin || point.y < -margin || point.x > canvas.width + margin || point.y > canvas.height + margin) continue;
     context.beginPath(); context.fillStyle = style[0]; context.strokeStyle = style[1]; context.lineWidth = 2 * renderDpr;
     context.arc(point.x, point.y, zone.radius * zoom, 0, Math.PI * 2);
-    if (!mobilePerformanceMode) context.fill();
+    if (!mobilePerformanceMode || renderQuality > 0) context.fill();
     context.stroke();
     context.fillStyle = style[1]; context.font = `800 ${10 * renderDpr}px system-ui`; context.textAlign = 'center';
     context.fillText(style[2], point.x, point.y - zone.radius * zoom + 18 * renderDpr);
@@ -628,5 +709,5 @@ function drawBoundary(screen, zoom) {
 }
 
 connect().catch(() => { connectionNode.textContent = 'SUNUCU YOK'; reconnectTimer = setTimeout(connect, 1500); });
-render();
+requestAnimationFrame(render);
 if (!window.SwarmRuntime.native && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});

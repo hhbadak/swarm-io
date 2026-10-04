@@ -136,6 +136,7 @@ public sealed class ArenaSimulation
     {
         var seconds = Math.Clamp((float)elapsed.TotalSeconds, 0, 0.1f);
         UpdateBots();
+        var energyAtStart = _energy.Values.ToArray();
         foreach (var pair in _players.ToArray())
         {
             var player = pair.Value;
@@ -186,8 +187,9 @@ public sealed class ArenaSimulation
             var shieldActive = _shieldUntilTick.TryGetValue(player.Id, out var shieldUntil) && _tick < shieldUntil;
             var magnetActive = _magnetUntilTick.TryGetValue(player.Id, out var magnetUntil) && _tick < magnetUntil;
             player = player with { ShieldActive = shieldActive, MagnetActive = magnetActive };
-            foreach (var orb in _energy.Values.ToArray())
+            foreach (var orb in energyAtStart)
             {
+                if (!_energy.ContainsKey(orb.Id)) continue;
                 var dx = player.Position.X - orb.Position.X;
                 var dy = player.Position.Y - orb.Position.Y;
                 var reach = player.Radius + (magnetActive ? 115 * trait.MagnetReachMultiplier : 8);
@@ -280,9 +282,15 @@ public sealed class ArenaSimulation
                 continue;
             }
 
-            var target = _energy.Values
-                .OrderBy(orb => DistanceSquared(bot.Position, orb.Position) / Math.Max(1, orb.Value))
-                .FirstOrDefault();
+            EnergyOrb? target = null;
+            var bestScore = float.MaxValue;
+            foreach (var orb in _energy.Values)
+            {
+                var score = DistanceSquared(bot.Position, orb.Position) / Math.Max(1, orb.Value);
+                if (score >= bestScore) continue;
+                bestScore = score;
+                target = orb;
+            }
             if (target is not null) _players[botId] = bot with { Input = new Vector2(target.Position.X - bot.Position.X, target.Position.Y - bot.Position.Y).Normalized };
         }
     }
