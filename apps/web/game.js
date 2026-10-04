@@ -520,7 +520,9 @@ function predictOwnPlayer(player, latest, now) {
     y: player.position.y + direction.y * speed * snapshotAge / 1000
   };
 
-  if (!localPredictedPosition || Math.hypot(localPredictedPosition.x - player.position.x, localPredictedPosition.y - player.position.y) > 260) {
+  // Only hard-snap for a genuine respawn/teleport. Mobile latency can legitimately
+  // put prediction hundreds of world units ahead, so a small threshold causes jumps.
+  if (!localPredictedPosition || Math.hypot(localPredictedPosition.x - player.position.x, localPredictedPosition.y - player.position.y) > 900) {
     localPredictedPosition = { ...authoritativeEstimate };
   } else {
     localPredictedPosition.x += direction.x * speed * elapsed / 1000;
