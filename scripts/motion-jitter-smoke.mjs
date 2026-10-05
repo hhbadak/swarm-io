@@ -47,7 +47,7 @@ await value(`(async () => {
 
 for (let attempt = 0; attempt < 30; attempt++) {
   await wait(300);
-  if (await value(`document.querySelector('#connection')?.textContent?.startsWith('CANLI') === true`).catch(() => false)) break;
+  if (await value(`document.querySelector('#connection')?.textContent?.startsWith('CANLI') === true && typeof snapshot !== 'undefined' && Array.isArray(snapshot?.players) && snapshot.players.length > 0`).catch(() => false)) break;
   if (attempt === 29) throw new Error('Arena connection did not become ready.');
 }
 
