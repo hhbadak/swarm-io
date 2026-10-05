@@ -18,6 +18,7 @@ coverage/
 .qa-edge/
 .qa-edge-appstore/
 .qa-edge-offline/
+.tmp-motion-chrome/
 .superdesign/tmp/
 graphify-out/
 Library/
