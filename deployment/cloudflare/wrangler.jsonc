@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "swarm-io-live",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-08",
+  "assets": {
+    "directory": "../../apps/web",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/health/*", "/ws/*"]
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "SWARM", "class_name": "SwarmWorld" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SwarmWorld"] }],
+  "observability": { "enabled": true }
+}

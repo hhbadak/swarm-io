@@ -1,0 +1,15 @@
+{
+  "name": "swarm-io-cloudflare",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "latest",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.42.0"
+  }
+}
