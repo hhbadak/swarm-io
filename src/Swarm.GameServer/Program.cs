@@ -204,7 +204,7 @@ public sealed class ArenaRoom
     public bool CanRetire => PlayerCount == 0 && DateTimeOffset.UtcNow - _lastActivity > TimeSpan.FromMinutes(2);
     public bool CanAccept(Guid playerId)
     {
-        lock (_gate) return !IsFinished && (_simulation.Snapshot().Players.Any(player => player.Id == playerId) || _simulation.HasCapacity);
+        lock (_gate) return !IsFinished && (_simulation.ContainsPlayer(playerId) || _simulation.HasCapacity);
     }
 
     public bool TryConnect(Guid playerId, string nickname, string skinId, WebSocket socket, out ArenaConnection? connection)
@@ -213,7 +213,7 @@ public sealed class ArenaRoom
         lock (_gate)
         {
             if (IsFinished) return false;
-            if (!_simulation.Snapshot().Players.Any(player => player.Id == playerId) && !_simulation.HasCapacity) return false;
+            if (!_simulation.ContainsPlayer(playerId) && !_simulation.HasCapacity) return false;
             _simulation.AddPlayer(playerId, nickname, skinId);
         }
         _disconnectDeadlines.TryRemove(playerId, out _);
@@ -247,11 +247,19 @@ public sealed class ArenaRoom
             }
         }
         ArenaSnapshot snapshot;
-        lock (_gate) snapshot = IsFinished ? _simulation.Snapshot() : _simulation.Step(elapsed);
         var matchFinished = IsFinished;
+        lock (_gate)
+        {
+            if (!matchFinished)
+            {
+                _simulation.Advance(elapsed);
+                matchFinished = IsFinished;
+                if (!matchFinished && _simulation.Tick % 2 != 0) return;
+            }
+            snapshot = _simulation.Snapshot();
+        }
         // Keep the authoritative simulation at 20 Hz but broadcast at 10 Hz.
         // Interpolation still renders at 60 FPS while avoiding bursty socket back-pressure.
-        if (!matchFinished && snapshot.Tick % 2 != 0) return;
         var currentEnergyIds = snapshot.Energy.Select(orb => orb.Id).ToHashSet();
         var energyAdded = snapshot.Energy.Where(orb => !_lastEnergyIds.Contains(orb.Id)).ToArray();
         var energyRemoved = _lastEnergyIds.Where(id => !currentEnergyIds.Contains(id)).ToArray();

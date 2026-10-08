@@ -32,16 +32,34 @@ const MATCH_DURATION_SECONDS = 5 * 60;
 const trails = new Map();
 const visualRadii = new Map();
 const visualPositions = new Map();
+const renderPlayerStates = new Map();
+const renderPlayersBuffer = [];
+const energyDrawBuckets = { common: [], rare: [], epic: [], core: [] };
+const energyKinds = ['common', 'rare', 'epic', 'core'];
+const energyStyles = {
+  common: ['#59e4ed', 3.5],
+  rare: ['#64ff8d', 5.5],
+  epic: ['#c49cff', 7.5],
+  core: ['#f5c96c', 10]
+};
+const zoneStyles = {
+  speed: ['#59e4ed18', '#59e4ed88', 'HIZ BÖLGESİ'],
+  gold: ['#f5c96c18', '#f5c96c88', '2X ENERJİ'],
+  gravity: ['#b69cff14', '#b69cff66', 'ÇEKİM MERKEZİ']
+};
+const arenaOrigin = { x: 0, y: 0 };
+const cullPoint = { x: 0, y: 0 };
+const trailPoint = { x: 0, y: 0 };
+const zonePoint = { x: 0, y: 0 };
+const boundaryPoint = { x: 0, y: 0 };
 const BASE_RADIUS = 22;
 const TARGET_FPS = 60;
 const MIN_FPS = 50;
-const FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
 const BASE_INTERPOLATION_DELAY_MS = 150;
 const MAX_INTERPOLATION_DELAY_MS = 300;
 const MAX_EXTRAPOLATION_MS = 25;
 const mobilePerformanceMode = window.SwarmRuntime.native || matchMedia('(pointer: coarse)').matches;
 const maxRenderDpr = Math.min(devicePixelRatio, 2);
-const minRenderDpr = mobilePerformanceMode ? .75 : 1;
 let renderDpr = mobilePerformanceMode ? Math.min(maxRenderDpr, 1) : maxRenderDpr;
 let renderQuality = mobilePerformanceMode ? 1 : 2;
 let ultraPerformanceMode = false;
@@ -49,11 +67,12 @@ let cachedNebula;
 let fpsWindowStartedAt = performance.now();
 let fpsFrames = 0;
 let stableFpsWindows = 0;
+let lowFpsWindows = 0;
 let lastHudUpdateAt = 0;
 let pendingHudUpdate = false;
 let lastInputSentAt = 0;
 let lastRenderedAt = 0;
-let frameDeltaMs = FRAME_INTERVAL_MS;
+let frameDeltaMs = 1000 / TARGET_FPS;
 let interpolationDelayMs = BASE_INTERPOLATION_DELAY_MS;
 let snapshotJitterMs = 0;
 let lastSnapshotReceivedAt = 0;
@@ -64,6 +83,7 @@ let predictedDashUntil = 0;
 let localWasMoving = false;
 let localStoppedAt = 0;
 if (mobilePerformanceMode) document.documentElement.classList.add('performance-mode');
+const BASE_TRAIT = Object.freeze({ speed: 1, dashSpeed: 1, shieldDuration: 1, magnetReach: 1, energyValue: 1, boundaryPenalty: 1 });
 const SKIN_TRAITS = {
   starter: { boundaryPenalty: .8 },
   neon: { magnetReach: 1.35 },
@@ -72,9 +92,10 @@ const SKIN_TRAITS = {
   void: { speed: 1.1 },
   gold: { dashSpeed: 1.25 }
 };
+const TRAITS = new Map(Object.entries(SKIN_TRAITS).map(([skinId, trait]) => [skinId, Object.freeze({ ...BASE_TRAIT, ...trait })]));
 
 function traitFor(player) {
-  return { speed: 1, dashSpeed: 1, shieldDuration: 1, magnetReach: 1, energyValue: 1, boundaryPenalty: 1, ...(SKIN_TRAITS[player?.skinId] || {}) };
+  return TRAITS.get(player?.skinId) ?? BASE_TRAIT;
 }
 
 function radiusForScore(score) { return BASE_RADIUS + Math.sqrt(Math.max(0, score)) * 1.22; }
@@ -500,8 +521,28 @@ function recordSnapshotFrame(message, receivedAt) {
   }
   lastSnapshotReceivedAt = receivedAt;
   lastSnapshotServerTimeMs = serverTimeMs;
-  snapshotFrames.push({ receivedAt, serverTimeMs, players: message.players, byId: new Map(message.players.map(player => [player.id, player])) });
+  const byId = new Map(message.players.map(player => [player.id, player]));
+  snapshotFrames.push({ receivedAt, serverTimeMs, players: message.players, byId });
   while (snapshotFrames.length > 24) snapshotFrames.shift();
+  for (const playerId of renderPlayerStates.keys()) {
+    if (byId.has(playerId)) continue;
+    renderPlayerStates.delete(playerId);
+    trails.delete(playerId);
+    visualRadii.delete(playerId);
+    visualPositions.delete(playerId);
+  }
+}
+
+function renderStateFor(player) {
+  let rendered = renderPlayerStates.get(player.id);
+  if (!rendered) {
+    rendered = { ...player, position: { ...player.position } };
+    renderPlayerStates.set(player.id, rendered);
+  }
+  const position = rendered.position;
+  Object.assign(rendered, player);
+  rendered.position = position;
+  return rendered;
 }
 
 function predictOwnPlayer(player, latest, now) {
@@ -545,7 +586,10 @@ function predictOwnPlayer(player, latest, now) {
   localPredictedPosition.x = Math.max(player.radius, Math.min(snapshot.arenaWidth - player.radius, localPredictedPosition.x));
   localPredictedPosition.y = Math.max(player.radius, Math.min(snapshot.arenaHeight - player.radius, localPredictedPosition.y));
   localPredictionUpdatedAt = now;
-  return { ...player, position: { ...localPredictedPosition } };
+  const rendered = renderStateFor(player);
+  rendered.position.x = localPredictedPosition.x;
+  rendered.position.y = localPredictedPosition.y;
+  return rendered;
 }
 
 function renderPlayers(now) {
@@ -565,33 +609,36 @@ function renderPlayers(now) {
   const extrapolationMs = targetTime > latest.serverTimeMs ? Math.min(MAX_EXTRAPOLATION_MS, targetTime - latest.serverTimeMs) : 0;
   const previousSpan = Math.max(1, latest.serverTimeMs - previous.serverTimeMs);
 
-  return latest.players.map(player => {
+  renderPlayersBuffer.length = latest.players.length;
+  for (let playerIndex = 0; playerIndex < latest.players.length; playerIndex++) {
+    const player = latest.players[playerIndex];
     if (player.id.toLowerCase() === playerId?.toLowerCase()) {
-      return predictOwnPlayer(player, latest, now);
+      renderPlayersBuffer[playerIndex] = predictOwnPlayer(player, latest, now);
+      continue;
     }
+    const rendered = renderStateFor(player);
     const first = before.byId.get(player.id);
     const second = after.byId.get(player.id);
     if (first && second && targetTime <= latest.serverTimeMs) {
-      return { ...player, radius: first.radius + (second.radius - first.radius) * alpha, position: {
-        x: first.position.x + (second.position.x - first.position.x) * alpha,
-        y: first.position.y + (second.position.y - first.position.y) * alpha
-      } };
+      rendered.radius = first.radius + (second.radius - first.radius) * alpha;
+      rendered.position.x = first.position.x + (second.position.x - first.position.x) * alpha;
+      rendered.position.y = first.position.y + (second.position.y - first.position.y) * alpha;
+      renderPlayersBuffer[playerIndex] = rendered;
+      continue;
     }
     const prior = previous.byId.get(player.id);
-    if (!prior || extrapolationMs <= 0) return player;
-    return { ...player, position: {
-      x: player.position.x + (player.position.x - prior.position.x) * extrapolationMs / previousSpan,
-      y: player.position.y + (player.position.y - prior.position.y) * extrapolationMs / previousSpan
-    } };
-  });
+    rendered.position.x = !prior || extrapolationMs <= 0 ? player.position.x : player.position.x + (player.position.x - prior.position.x) * extrapolationMs / previousSpan;
+    rendered.position.y = !prior || extrapolationMs <= 0 ? player.position.y : player.position.y + (player.position.y - prior.position.y) * extrapolationMs / previousSpan;
+    renderPlayersBuffer[playerIndex] = rendered;
+  }
+  return renderPlayersBuffer;
 }
 
 function render(frameTime = performance.now()) {
   requestAnimationFrame(render);
   if (document.hidden) return;
   const elapsedSinceRender = frameTime - lastRenderedAt;
-  if (lastRenderedAt && elapsedSinceRender < FRAME_INTERVAL_MS - 1.2) return;
-  frameDeltaMs = Math.min(50, lastRenderedAt ? elapsedSinceRender : FRAME_INTERVAL_MS);
+  frameDeltaMs = Math.min(50, lastRenderedAt ? elapsedSinceRender : 1000 / TARGET_FPS);
   lastRenderedAt = frameTime;
   const dpr = renderDpr;
   monitorFrameRate(frameTime);
@@ -600,7 +647,11 @@ function render(frameTime = performance.now()) {
   const ownVisualPosition = own ? (localMode ? smoothPosition(own, 42) : own.position) : null;
   const camera = ownVisualPosition ?? own?.position ?? { x: 800, y: 450 };
   const zoom = dpr * Math.max(0.72, 1.08 - ((own?.radius ?? 18) - 18) * 0.006);
-  const screen = position => ({ x: canvas.width / 2 + (position.x - camera.x) * zoom, y: canvas.height / 2 + (position.y - camera.y) * zoom });
+  const screen = (position, target) => {
+    target.x = canvas.width / 2 + (position.x - camera.x) * zoom;
+    target.y = canvas.height / 2 + (position.y - camera.y) * zoom;
+    return target;
+  };
 
   context.fillStyle = '#030611';
   context.fillRect(0, 0, canvas.width, canvas.height);
@@ -610,11 +661,12 @@ function render(frameTime = performance.now()) {
   drawZones(screen, zoom);
   drawEnergy(camera, zoom);
 
-  const alivePlayers = playersForRender.filter(player => player.alive);
-  const leaderScore = alivePlayers.reduce((highest, player) => Math.max(highest, player.score), 0);
-  for (const player of alivePlayers) {
+  let leaderScore = 0;
+  for (const player of playersForRender) if (player.alive && player.score > leaderScore) leaderScore = player.score;
+  for (const player of playersForRender) {
+    if (!player.alive) continue;
     const visualPosition = player.id === own?.id ? ownVisualPosition : smoothPosition(player, 85);
-    const point = screen(visualPosition ?? player.position);
+    const point = screen(visualPosition ?? player.position, cullPoint);
     const visibleMargin = Math.max(100 * dpr, player.radius * zoom * 2);
     if (point.x < -visibleMargin || point.y < -visibleMargin || point.x > canvas.width + visibleMargin || point.y > canvas.height + visibleMargin) continue;
     const showTrail = !mobilePerformanceMode || (renderQuality >= 2 && (player.id === own?.id || !player.isBot));
@@ -626,7 +678,7 @@ function render(frameTime = performance.now()) {
       if (trail.length > trailLimit) trail.length = trailLimit;
       trails.set(player.id, trail);
     }
-    drawCreature(player, visualPosition, trail, screen, zoom, player.id.toLowerCase() === playerId?.toLowerCase(), leaderScore, frameTime);
+    drawCreature(player, visualPosition, point, trail, screen, zoom, player.id.toLowerCase() === playerId?.toLowerCase(), leaderScore, frameTime);
   }
 }
 
@@ -652,24 +704,28 @@ function monitorFrameRate(now) {
   fpsWindowStartedAt = now;
   if (fps < MIN_FPS) {
     stableFpsWindows = 0;
-    renderQuality = 0;
-    if (fps < 46) ultraPerformanceMode = true;
-    if (renderDpr > minRenderDpr) { renderDpr = Math.max(minRenderDpr, renderDpr - .15); resize(); }
-    document.documentElement.classList.add('performance-mode');
+    lowFpsWindows++;
+    if (lowFpsWindows >= 2) {
+      renderQuality = 0;
+      ultraPerformanceMode = true;
+      document.documentElement.classList.add('performance-mode');
+    }
   } else if (fps >= TARGET_FPS - 4) {
+    lowFpsWindows = 0;
     stableFpsWindows++;
-    if (stableFpsWindows >= 3 && renderDpr < maxRenderDpr) {
-      renderDpr = Math.min(maxRenderDpr, renderDpr + .1);
-      if (renderDpr >= maxRenderDpr) renderQuality = mobilePerformanceMode ? 2 : renderQuality;
-      if (renderDpr >= maxRenderDpr) document.documentElement.classList.remove('performance-mode');
-      resize();
+    if (stableFpsWindows >= 8) {
+      renderQuality = mobilePerformanceMode ? 1 : 2;
+      ultraPerformanceMode = false;
+      if (!mobilePerformanceMode) document.documentElement.classList.remove('performance-mode');
       stableFpsWindows = 0;
     }
-    if (stableFpsWindows >= 2) ultraPerformanceMode = false;
-  } else stableFpsWindows = 0;
+  } else {
+    lowFpsWindows = 0;
+    stableFpsWindows = 0;
+  }
 }
 
-function drawCreature(player, visualPosition, trail, screen, zoom, own, leaderScore, time) {
+function drawCreature(player, visualPosition, point, trail, screen, zoom, own, leaderScore, time) {
   const skin = window.SwarmCharacters?.skins[player.skinId] ?? window.SwarmCharacters?.skins.starter;
   const color = skin?.primary ?? (own ? '#59e4ed' : '#b69cff');
   const previousRadius = visualRadii.get(player.id) ?? player.radius;
@@ -677,13 +733,12 @@ function drawCreature(player, visualPosition, trail, screen, zoom, own, leaderSc
   const visualRadius = previousRadius + (player.radius - previousRadius) * radiusAmount;
   visualRadii.set(player.id, visualRadius);
   for (let index = trail.length - 1; index >= 3; index -= 3) {
-    const point = screen(trail[index]);
+    const point = screen(trail[index], trailPoint);
     const fade = 1 - index / trail.length;
     context.beginPath(); context.globalAlpha = fade * 0.34; context.fillStyle = color;
     context.arc(point.x, point.y, Math.max(1.5 * renderDpr, visualRadius * zoom * fade * .12), 0, Math.PI * 2); context.fill();
   }
   context.globalAlpha = 1;
-  const point = screen(visualPosition);
   if (player.magnetActive) {
     context.beginPath(); context.strokeStyle = '#c49cff66'; context.lineWidth = 2 * renderDpr;
     context.arc(point.x, point.y, 120 * zoom, 0, Math.PI * 2); context.stroke();
@@ -709,23 +764,19 @@ function drawCreature(player, visualPosition, trail, screen, zoom, own, leaderSc
 }
 
 function drawEnergy(camera, zoom) {
-  const styles = {
-    common: ['#59e4ed', 3.5],
-    rare: ['#64ff8d', 5.5],
-    epic: ['#c49cff', 7.5],
-    core: ['#f5c96c', 10]
-  };
-  const visibleByKind = { common: [], rare: [], epic: [], core: [] };
+  for (const kind of energyKinds) energyDrawBuckets[kind].length = 0;
   for (const orb of snapshot.energy ?? []) {
     const x = canvas.width / 2 + (orb.position.x - camera.x) * zoom;
     const y = canvas.height / 2 + (orb.position.y - camera.y) * zoom;
     if (x < -20 || y < -20 || x > canvas.width + 20 || y > canvas.height + 20) continue;
-    (visibleByKind[orb.kind] ?? visibleByKind.common).push({ x, y });
+    (energyDrawBuckets[orb.kind] ?? energyDrawBuckets.common).push(x, y);
   }
-  for (const [kind, style] of Object.entries(styles)) {
+  for (const kind of energyKinds) {
+    const style = energyStyles[kind];
     context.beginPath();
-    const points = visibleByKind[kind];
-    for (const { x, y } of points) {
+    const points = energyDrawBuckets[kind];
+    for (let index = 0; index < points.length; index += 2) {
+      const x = points[index], y = points[index + 1];
       const radius = style[1] * zoom;
       context.moveTo(x + radius, y);
       context.arc(x, y, radius, 0, Math.PI * 2);
@@ -740,13 +791,8 @@ function drawEnergy(camera, zoom) {
 }
 
 function drawZones(screen, zoom) {
-  const styles = {
-    speed: ['#59e4ed18', '#59e4ed88', 'HIZ BÖLGESİ'],
-    gold: ['#f5c96c18', '#f5c96c88', '2X ENERJİ'],
-    gravity: ['#b69cff14', '#b69cff66', 'ÇEKİM MERKEZİ']
-  };
   for (const zone of snapshot.zones ?? []) {
-    const point = screen(zone.position), style = styles[zone.kind] ?? styles.gravity;
+    const point = screen(zone.position, zonePoint), style = zoneStyles[zone.kind] ?? zoneStyles.gravity;
     const margin = zone.radius * zoom;
     if (point.x < -margin || point.y < -margin || point.x > canvas.width + margin || point.y > canvas.height + margin) continue;
     context.beginPath(); context.fillStyle = style[0]; context.strokeStyle = style[1]; context.lineWidth = 2 * renderDpr;
@@ -772,7 +818,7 @@ function drawNebula() {
 }
 
 function drawBoundary(screen, zoom) {
-  const topLeft = screen({ x: 0, y: 0 });
+  const topLeft = screen(arenaOrigin, boundaryPoint);
   context.strokeStyle = '#ff4d8d'; context.lineWidth = 4 * renderDpr; context.shadowColor = '#ff4d8d'; context.shadowBlur = renderQuality > 0 ? 14 : 0;
   context.strokeRect(topLeft.x, topLeft.y, snapshot.arenaWidth * zoom, snapshot.arenaHeight * zoom); context.shadowBlur = 0;
 }

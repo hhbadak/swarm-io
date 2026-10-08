@@ -10,9 +10,15 @@ public sealed class ArenaSimulation
     public const int TargetPopulation = 24;
     private const float BaseSpeed = 230;
     private const int TargetEnergyCount = 300;
+    private const float EnergyCellSize = 160;
     private readonly Dictionary<Guid, ArenaPlayer> _players = new();
     private readonly Dictionary<Guid, EnergyOrb> _energy = new();
+    private readonly Dictionary<(int X, int Y), HashSet<Guid>> _energyCells = new();
     private readonly HashSet<Guid> _botIds = new();
+    private readonly Dictionary<Guid, Guid> _botTargets = new();
+    private readonly List<Guid> _energyCandidates = new(64);
+    private readonly List<Guid> _playerIds = new(MaxPlayers);
+    private readonly List<Guid> _alivePlayerIds = new(MaxPlayers);
     private readonly Dictionary<Guid, long> _dashUntilTick = new();
     private readonly Dictionary<Guid, long> _dashReadyTick = new();
     private readonly Dictionary<Guid, Vector2> _dashDirection = new();
@@ -53,7 +59,9 @@ public sealed class ArenaSimulation
     public int RealPlayerCount => _players.Values.Count(player => !player.IsBot);
     public int BotCount => _botIds.Count;
     public int PlayerCount => _players.Count;
+    public long Tick => _tick;
     public bool HasCapacity => RealPlayerCount < MaxPlayers;
+    public bool ContainsPlayer(Guid id) => _players.ContainsKey(id);
 
     public static float MovementSpeedFor(float radius, float traitMultiplier = 1)
     {
@@ -134,12 +142,20 @@ public sealed class ArenaSimulation
 
     public ArenaSnapshot Step(TimeSpan elapsed)
     {
+        Advance(elapsed);
+        return Snapshot();
+    }
+
+    public void Advance(TimeSpan elapsed)
+    {
         var seconds = Math.Clamp((float)elapsed.TotalSeconds, 0, 0.1f);
         UpdateBots();
-        var energyAtStart = _energy.Values.ToArray();
-        foreach (var pair in _players.ToArray())
+        var eventMultiplier = ActiveEvent() is null ? 1 : 2;
+        _playerIds.Clear();
+        _playerIds.AddRange(_players.Keys);
+        foreach (var playerId in _playerIds)
         {
-            var player = pair.Value;
+            var player = _players[playerId];
             if (!player.Alive) continue;
             var trait = CharacterTraits.For(player.SkinId);
             var speed = MovementSpeedFor(player.Radius, trait.SpeedMultiplier);
@@ -181,32 +197,31 @@ public sealed class ArenaSimulation
             }
             if (!player.Alive)
             {
-                _players[pair.Key] = player with { Input = new Vector2(0, 0) };
+                _players[playerId] = player with { Input = new Vector2(0, 0) };
                 continue;
             }
             var shieldActive = _shieldUntilTick.TryGetValue(player.Id, out var shieldUntil) && _tick < shieldUntil;
             var magnetActive = _magnetUntilTick.TryGetValue(player.Id, out var magnetUntil) && _tick < magnetUntil;
             player = player with { ShieldActive = shieldActive, MagnetActive = magnetActive };
-            foreach (var orb in energyAtStart)
+            var reach = player.Radius + (magnetActive ? 115 * trait.MagnetReachMultiplier : 8);
+            CollectEnergyCandidates(player.Position, reach, _energyCandidates);
+            foreach (var orbId in _energyCandidates)
             {
-                if (!_energy.ContainsKey(orb.Id)) continue;
+                if (!_energy.TryGetValue(orbId, out var orb)) continue;
                 var dx = player.Position.X - orb.Position.X;
                 var dy = player.Position.Y - orb.Position.Y;
-                var reach = player.Radius + (magnetActive ? 115 * trait.MagnetReachMultiplier : 8);
                 if ((dx * dx) + (dy * dy) > reach * reach) continue;
-                _energy.Remove(orb.Id);
+                RemoveEnergy(orb.Id);
                 var zoneMultiplier = InsideZone(player.Position, "gold") ? 2 : 1;
-                var eventMultiplier = ActiveEvent() is not null ? 2 : 1;
                 var traitValue = Math.Max(orb.Value, (int)MathF.Round(orb.Value * trait.EnergyValueMultiplier));
                 var nextScore = player.Score + (traitValue * zoneMultiplier * eventMultiplier);
                 player = player with { Score = nextScore, Radius = 18 + MathF.Sqrt(nextScore) * 0.7f };
             }
-            _players[pair.Key] = player;
+            _players[playerId] = player;
         }
         ResolvePlayerCollisions();
         RefillEnergy();
         _tick++;
-        return Snapshot();
     }
 
     public ArenaSnapshot Snapshot() => new(_tick, _players.Values.ToArray(), _energy.Values.ToArray(), _zones, ActiveEvent());
@@ -223,8 +238,7 @@ public sealed class ArenaSimulation
                 < 0.20 => (5, "rare"),
                 _ => (1, "common")
             };
-            var orb = new EnergyOrb(Guid.NewGuid(), RandomPosition(), value, kind);
-            _energy[orb.Id] = orb;
+            AddEnergy(new EnergyOrb(Guid.NewGuid(), RandomPosition(), value, kind));
         }
     }
 
@@ -269,6 +283,7 @@ public sealed class ArenaSimulation
         _shieldReadyTick.Remove(id);
         _magnetUntilTick.Remove(id);
         _magnetReadyTick.Remove(id);
+        _botTargets.Remove(id);
     }
 
     private void UpdateBots()
@@ -278,32 +293,79 @@ public sealed class ArenaSimulation
             if (!_players.TryGetValue(botId, out var bot)) continue;
             if (!bot.Alive)
             {
+                _botTargets.Remove(botId);
                 _players[botId] = CreatePlayer(botId, bot.Nickname, true, _random.Next(0, 30), bot.SkinId);
                 continue;
             }
 
             EnergyOrb? target = null;
-            var bestScore = float.MaxValue;
-            foreach (var orb in _energy.Values)
+            if (_botTargets.TryGetValue(botId, out var targetId)) _energy.TryGetValue(targetId, out target);
+            if (target is null)
             {
-                var score = DistanceSquared(bot.Position, orb.Position) / Math.Max(1, orb.Value);
-                if (score >= bestScore) continue;
-                bestScore = score;
-                target = orb;
+                var bestScore = float.MaxValue;
+                foreach (var orb in _energy.Values)
+                {
+                    var score = DistanceSquared(bot.Position, orb.Position) / Math.Max(1, orb.Value);
+                    if (score >= bestScore) continue;
+                    bestScore = score;
+                    target = orb;
+                }
+                if (target is not null) _botTargets[botId] = target.Id;
             }
             if (target is not null) _players[botId] = bot with { Input = new Vector2(target.Position.X - bot.Position.X, target.Position.Y - bot.Position.Y).Normalized };
         }
     }
 
+    private void AddEnergy(EnergyOrb orb)
+    {
+        _energy[orb.Id] = orb;
+        var cell = EnergyCell(orb.Position);
+        if (!_energyCells.TryGetValue(cell, out var ids))
+        {
+            ids = new HashSet<Guid>();
+            _energyCells[cell] = ids;
+        }
+        ids.Add(orb.Id);
+    }
+
+    private bool RemoveEnergy(Guid id)
+    {
+        if (!_energy.Remove(id, out var orb)) return false;
+        var cell = EnergyCell(orb.Position);
+        if (_energyCells.TryGetValue(cell, out var ids))
+        {
+            ids.Remove(id);
+            if (ids.Count == 0) _energyCells.Remove(cell);
+        }
+        return true;
+    }
+
+    private void CollectEnergyCandidates(Vector2 position, float reach, List<Guid> destination)
+    {
+        destination.Clear();
+        var minX = (int)MathF.Floor((position.X - reach) / EnergyCellSize);
+        var maxX = (int)MathF.Floor((position.X + reach) / EnergyCellSize);
+        var minY = (int)MathF.Floor((position.Y - reach) / EnergyCellSize);
+        var maxY = (int)MathF.Floor((position.Y + reach) / EnergyCellSize);
+        for (var x = minX; x <= maxX; x++)
+        for (var y = minY; y <= maxY; y++)
+            if (_energyCells.TryGetValue((x, y), out var ids)) destination.AddRange(ids);
+    }
+
+    private static (int X, int Y) EnergyCell(Vector2 position)
+        => ((int)MathF.Floor(position.X / EnergyCellSize), (int)MathF.Floor(position.Y / EnergyCellSize));
+
     private void ResolvePlayerCollisions()
     {
-        var alive = _players.Values.Where(player => player.Alive).ToArray();
-        for (var i = 0; i < alive.Length; i++)
+        _alivePlayerIds.Clear();
+        foreach (var player in _players.Values)
+            if (player.Alive) _alivePlayerIds.Add(player.Id);
+        for (var i = 0; i < _alivePlayerIds.Count; i++)
         {
-            for (var j = i + 1; j < alive.Length; j++)
+            for (var j = i + 1; j < _alivePlayerIds.Count; j++)
             {
-                var first = _players[alive[i].Id];
-                var second = _players[alive[j].Id];
+                var first = _players[_alivePlayerIds[i]];
+                var second = _players[_alivePlayerIds[j]];
                 if (!first.Alive || !second.Alive) continue;
                 if ((_invulnerableUntilTick.TryGetValue(first.Id, out var firstSafeUntil) && _tick < firstSafeUntil)
                     || (_invulnerableUntilTick.TryGetValue(second.Id, out var secondSafeUntil) && _tick < secondSafeUntil)) continue;

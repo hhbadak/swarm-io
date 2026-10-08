@@ -1,5 +1,6 @@
 using Swarm.Application;
 using Swarm.Domain;
+using System.Diagnostics;
 
 var tests = new (string Name, Action Run)[]
 {
@@ -10,7 +11,8 @@ var tests = new (string Name, Action Run)[]
     ("Every character has a unique trait", EveryCharacterHasUniqueTrait), ("Character traits affect simulation", CharacterTraitsAffectSimulation),
     ("Arena has zones and rarity", ArenaHasProductSystems), ("Reconnect preserves player", ReconnectPreservesPlayer),
     ("Bots fill a 24 player arena", BotsFillTargetPopulation), ("Real players replace bots", RealPlayersReplaceBots),
-    ("Arena accepts at most 50 real players", ArenaCapacityIsEnforced), ("Growth reduces movement speed", GrowthReducesMovementSpeed)
+    ("Arena accepts at most 50 real players", ArenaCapacityIsEnforced), ("Growth reduces movement speed", GrowthReducesMovementSpeed),
+    ("Arena tick stays inside realtime budget", ArenaTickStaysInsideRealtimeBudget)
 };
 var failures = 0;
 foreach (var test in tests)
@@ -34,6 +36,20 @@ static void ExpiredTokenRejected()
     var service = new SwarmTokenService("12345678901234567890123456789012");
     var token = service.Issue(Guid.NewGuid(), "Nova", "match", TimeSpan.FromSeconds(-1));
     Assert(!service.TryValidate(token, "match", out _), "Expired token should be rejected.");
+}
+
+static void ArenaTickStaysInsideRealtimeBudget()
+{
+    var simulation = new ArenaSimulation(211);
+    var tick = TimeSpan.FromMilliseconds(50);
+    for (var index = 0; index < 100; index++) simulation.Advance(tick);
+    var stopwatch = Stopwatch.StartNew();
+    const int iterations = 2_000;
+    for (var index = 0; index < iterations; index++) simulation.Advance(tick);
+    stopwatch.Stop();
+    var averageMilliseconds = stopwatch.Elapsed.TotalMilliseconds / iterations;
+    Console.WriteLine($"METRIC Arena tick average: {averageMilliseconds:F3} ms");
+    Assert(averageMilliseconds < 5, $"Arena tick must stay below 5 ms average, measured {averageMilliseconds:F3} ms.");
 }
 static void MovementClamped()
 {
