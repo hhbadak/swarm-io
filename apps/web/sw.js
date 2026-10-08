@@ -1,4 +1,4 @@
-const CACHE = 'swarm-shell-v14';
+const CACHE = 'swarm-shell-v15';
 const SHELL = ['/', '/index.html', '/game.html', '/portal.html', '/privacy.html', '/terms.html', '/support.html', '/styles.css', '/mobile-shell.css', '/lobby.css', '/game.css', '/portal.css', '/legal.css', '/bootstrap.js', '/runtime.js', '/offline-api.js', '/mobile-shell.js', '/native-purchases.js', '/app.js', '/game.js', '/portal.js', '/character-renderer.js', '/icon.svg'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));

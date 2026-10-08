@@ -1,7 +1,7 @@
 (function () {
   const forcedOffline = new URLSearchParams(location.search).get('offline') === '1';
   const native = forcedOffline || location.protocol === 'capacitor:' || location.protocol === 'ionic:' || Boolean(window.Capacitor?.isNativePlatform?.());
-  const configuredOrigin = localStorage.getItem('swarm.apiOrigin') || 'https://swarm-io-hhbadak-live.onrender.com';
+  const configuredOrigin = localStorage.getItem('swarm.apiOrigin') || 'https://swarm-io-live.hsnhsynesk.workers.dev';
   const apiOrigin = native ? configuredOrigin.replace(/\/$/, '') : '';
 
   function page(name) {
