@@ -1,6 +1,6 @@
 const endpoint = process.env.CDP_ENDPOINT ?? 'http://127.0.0.1:9244';
 const appOrigin = process.env.SWARM_APP_ORIGIN ?? 'https://swarm-io-hhbadak-live.onrender.com';
-const target = await fetch(`${endpoint}/json/new?${encodeURIComponent(appOrigin)}`, { method: 'PUT' }).then(response => response.json());
+const target = await fetch(`${endpoint}/json/new?about:blank`, { method: 'PUT' }).then(response => response.json());
 const socket = new WebSocket(target.webSocketDebuggerUrl);
 const pending = new Map();
 let sequence = 0;
@@ -32,7 +32,16 @@ await command('Page.enable');
 await command('Runtime.enable');
 await command('Network.enable');
 await command('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 3, mobile: true });
-await wait(1200);
+await command('Page.navigate', { url: appOrigin });
+for (let attempt = 0; attempt < 40; attempt++) {
+  await wait(200);
+  const ready = await value(`document.readyState === 'complete' && Boolean(window.SwarmRuntime)`).catch(() => false);
+  if (ready) break;
+  if (attempt === 39) {
+    const diagnostic = await value(`({href:location.href, ready:document.readyState, title:document.title, text:document.body?.innerText?.slice(0,120)})`).catch(() => ({}));
+    throw new Error(`Home screen did not become ready: ${JSON.stringify(diagnostic)}`);
+  }
+}
 await value(`(async () => {
   const response = await fetch('/api/v1/auth/guest', {
     method: 'POST', headers: {'content-type':'application/json'},

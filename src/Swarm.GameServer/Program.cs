@@ -254,19 +254,17 @@ public sealed class ArenaRoom
             {
                 _simulation.Advance(elapsed);
                 matchFinished = IsFinished;
-                if (!matchFinished && _simulation.Tick % 2 != 0) return;
+                if (!matchFinished && _simulation.Tick % 4 != 0) return;
             }
             snapshot = _simulation.Snapshot();
         }
-        // Keep the authoritative simulation at 20 Hz but broadcast at 10 Hz.
-        // Interpolation still renders at 60 FPS while avoiding bursty socket back-pressure.
+        // Keep the authoritative simulation at 20 Hz but broadcast at 5 Hz.
+        // The client predicts its own movement and interpolates remote players at 60 FPS.
         var currentEnergyIds = snapshot.Energy.Select(orb => orb.Id).ToHashSet();
         var energyAdded = snapshot.Energy.Where(orb => !_lastEnergyIds.Contains(orb.Id)).ToArray();
         var energyRemoved = _lastEnergyIds.Where(id => !currentEnergyIds.Contains(id)).ToArray();
         _lastEnergyIds.Clear();
         _lastEnergyIds.UnionWith(currentEnergyIds);
-        var periodicFullState = snapshot.Tick % 40 == 0;
-
         object CreateMessage(bool fullState) => new
         {
             type = "snapshot",
@@ -283,22 +281,22 @@ public sealed class ArenaRoom
             arenaHeight = ArenaSimulation.ArenaHeight,
             serverTimeMs = snapshot.Tick * 50,
             snapshot.Tick,
-            snapshot.Players,
-            energy = fullState ? snapshot.Energy : null,
-            energyAdded = !fullState && energyAdded.Length > 0 ? energyAdded : null,
+            players = snapshot.Players.Select(CompactPlayer).ToArray(),
+            energy = fullState ? snapshot.Energy.Select(CompactEnergy).ToArray() : null,
+            energyAdded = !fullState && energyAdded.Length > 0 ? energyAdded.Select(CompactEnergy).ToArray() : null,
             energyRemoved = !fullState && energyRemoved.Length > 0 ? energyRemoved : null,
-            zones = fullState || snapshot.Tick % 100 == 0 ? snapshot.Zones : null,
+            zones = fullState ? snapshot.Zones : null,
             snapshot.Event
         };
 
-        var deltaPayload = JsonSerializer.SerializeToUtf8Bytes(CreateMessage(periodicFullState), JsonOptions);
-        var requiresFullPayload = !periodicFullState && _connections.Values.Any(connection => connection.NeedsFullState);
+        var deltaPayload = JsonSerializer.SerializeToUtf8Bytes(CreateMessage(false), JsonOptions);
+        var requiresFullPayload = _connections.Values.Any(connection => connection.NeedsFullState);
         var fullPayload = requiresFullPayload
             ? JsonSerializer.SerializeToUtf8Bytes(CreateMessage(true), JsonOptions)
             : deltaPayload;
         var sendTasks = _connections.Values.Select(async connection =>
         {
-            var needsFullState = connection.NeedsFullState && !periodicFullState;
+            var needsFullState = connection.NeedsFullState;
             var sent = await TrySend(connection, needsFullState ? fullPayload : deltaPayload, cancellationToken, waitForLock: false);
             if (sent) connection.NeedsFullState = false;
 
@@ -317,6 +315,20 @@ public sealed class ArenaRoom
         });
         await Task.WhenAll(sendTasks);
     }
+
+    private static object CompactPlayer(ArenaPlayer player) => new object[]
+    {
+        player.Id, player.Nickname, player.SkinId,
+        MathF.Round(player.Position.X, 1), MathF.Round(player.Position.Y, 1),
+        player.Score, player.Kills, MathF.Round(player.Radius, 1),
+        player.Alive ? 1 : 0, player.IsBot ? 1 : 0,
+        player.ShieldActive ? 1 : 0, player.MagnetActive ? 1 : 0
+    };
+
+    private static object CompactEnergy(EnergyOrb orb) => new object[]
+    {
+        orb.Id, MathF.Round(orb.Position.X, 1), MathF.Round(orb.Position.Y, 1), orb.Value, orb.Kind
+    };
 
     private static async Task<bool> TrySend(ArenaConnection connection, byte[] payload, CancellationToken cancellationToken, bool waitForLock)
     {

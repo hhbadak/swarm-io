@@ -58,8 +58,13 @@ for (const socket of sockets) socket.close();
 const playerIds = new Set(sessions.map(session => session.player.id.toLowerCase()));
 const sample = snapshots[0].threePlayerState;
 const fullState = snapshots[0].fullState;
+const players = sample.players.map(player => Array.isArray(player) ? {
+  id: player[0], nickname: player[1], skinId: player[2], position: { x: player[3], y: player[4] },
+  score: player[5], kills: player[6], radius: player[7], alive: player[8] === 1, isBot: player[9] === 1,
+  shieldActive: player[10] === 1, magnetActive: player[11] === 1
+} : player);
 if (sample.capacity !== 50) throw new Error(`Expected capacity 50, received ${sample.capacity}.`);
-if (sample.realPlayers !== 3 || sample.bots !== 21 || sample.players.length !== 24)
+if (sample.realPlayers !== 3 || sample.bots !== 21 || players.length !== 24)
   throw new Error(`Expected 3 real + 21 bots, received ${sample.realPlayers} real + ${sample.bots} bots.`);
 if (sample.roomCode !== room.roomCode) throw new Error('Players did not join the requested friend room.');
 if (!Array.isArray(fullState.energy) || fullState.energy.length !== 300) throw new Error('Initial snapshot must contain the complete energy state.');
@@ -68,8 +73,8 @@ const fullSnapshotBytes = JSON.stringify({ ...sample, energy: fullState.energy, 
 if (compactSnapshot.bytes >= fullSnapshotBytes * .55)
   throw new Error(`Compact snapshot is unexpectedly large (${compactSnapshot.bytes}/${fullSnapshotBytes} bytes).`);
 for (const playerId of playerIds) {
-  const player = sample.players.find(candidate => candidate.id.toLowerCase() === playerId);
+  const player = players.find(candidate => candidate.id.toLowerCase() === playerId);
   if (!player || player.isBot) throw new Error(`Real player ${playerId} was not marked correctly.`);
 }
 
-console.log(JSON.stringify({ passed: true, roomCode: room.roomCode, capacity: sample.capacity, realPlayers: sample.realPlayers, bots: sample.bots, totalPlayers: sample.players.length, fullSnapshotBytes, compactSnapshotBytes: compactSnapshot.bytes }));
+console.log(JSON.stringify({ passed: true, roomCode: room.roomCode, capacity: sample.capacity, realPlayers: sample.realPlayers, bots: sample.bots, totalPlayers: players.length, fullSnapshotBytes, compactSnapshotBytes: compactSnapshot.bytes }));

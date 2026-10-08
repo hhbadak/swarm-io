@@ -55,8 +55,8 @@ const boundaryPoint = { x: 0, y: 0 };
 const BASE_RADIUS = 22;
 const TARGET_FPS = 60;
 const MIN_FPS = 50;
-const BASE_INTERPOLATION_DELAY_MS = 150;
-const MAX_INTERPOLATION_DELAY_MS = 300;
+const BASE_INTERPOLATION_DELAY_MS = 240;
+const MAX_INTERPOLATION_DELAY_MS = 450;
 const MAX_EXTRAPOLATION_MS = 25;
 const mobilePerformanceMode = window.SwarmRuntime.native || matchMedia('(pointer: coarse)').matches;
 const maxRenderDpr = Math.min(devicePixelRatio, 2);
@@ -149,12 +149,19 @@ async function connect() {
     const message = JSON.parse(event.data);
     if (message.type === 'snapshot') {
       const receivedAt = performance.now();
+      message.players = (message.players ?? []).map(decodePlayer);
       if (Array.isArray(message.energy)) {
         energyById.clear();
-        for (const orb of message.energy) energyById.set(orb.id, orb);
+        for (const value of message.energy) {
+          const orb = decodeEnergy(value);
+          energyById.set(orb.id, orb);
+        }
       } else {
         for (const id of message.energyRemoved ?? []) energyById.delete(id);
-        for (const orb of message.energyAdded ?? []) energyById.set(orb.id, orb);
+        for (const value of message.energyAdded ?? []) {
+          const orb = decodeEnergy(value);
+          energyById.set(orb.id, orb);
+        }
       }
       snapshot = {
         ...snapshot,
@@ -167,6 +174,20 @@ async function connect() {
     }
     if (message.type === 'gameOver') handleGameOver(message);
   });
+}
+
+function decodePlayer(value) {
+  if (!Array.isArray(value)) return value;
+  return {
+    id: value[0], nickname: value[1], skinId: value[2],
+    position: { x: value[3], y: value[4] }, score: value[5], kills: value[6], radius: value[7],
+    alive: value[8] === 1, isBot: value[9] === 1, shieldActive: value[10] === 1, magnetActive: value[11] === 1
+  };
+}
+
+function decodeEnergy(value) {
+  if (!Array.isArray(value)) return value;
+  return { id: value[0], position: { x: value[1], y: value[2] }, value: value[3], kind: value[4] };
 }
 
 function sendInput(dash = false, ability = null, force = false) {
