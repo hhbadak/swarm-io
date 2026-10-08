@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import QuartzCore
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
@@ -9,6 +10,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         window = UIWindow(windowScene: windowScene)
         window?.rootViewController = MainViewController()
+        if #available(iOS 15.0, *) {
+            let maximum = Float(windowScene.screen.maximumFramesPerSecond)
+            window?.layer.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: maximum, preferred: 60)
+        }
         window?.makeKeyAndVisible()
 
         SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)

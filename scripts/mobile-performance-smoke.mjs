@@ -3,6 +3,7 @@ const appUrl = process.env.TEST_URL ?? 'http://127.0.0.1:5098/index.html?offline
 const target = await fetch(`${endpoint}/json/new?about:blank`, { method: 'PUT' }).then(response => response.json());
 const socket = new WebSocket(target.webSocketDebuggerUrl);
 const pending = new Map();
+const runtimeErrors = [];
 let sequence = 0;
 
 await new Promise((resolve, reject) => {
@@ -11,6 +12,9 @@ await new Promise((resolve, reject) => {
 });
 socket.addEventListener('message', event => {
   const message = JSON.parse(event.data);
+  if (message.method === 'Runtime.exceptionThrown') {
+    runtimeErrors.push(message.params?.exceptionDetails?.exception?.description || message.params?.exceptionDetails?.text || 'Unknown runtime exception');
+  }
   if (!message.id || !pending.has(message.id)) return;
   const callbacks = pending.get(message.id);
   pending.delete(message.id);
@@ -52,7 +56,21 @@ await value(`(async () => {
 for (let attempt = 0; attempt < 30; attempt++) {
   await wait(200);
   if (await value(`document.querySelector('#connection')?.textContent === 'CİHAZ İÇİ TEST'`).catch(() => false)) break;
-  if (attempt === 29) throw new Error('Offline arena did not become ready.');
+  if (attempt === 29) {
+    const diagnostic = await value(`({
+      href: location.href,
+      connection: document.querySelector('#connection')?.textContent,
+      playerId: window.SwarmRuntime?.session?.get('swarm.playerId'),
+      accessToken: Boolean(window.SwarmRuntime?.session?.get('swarm.accessToken')),
+      offline: window.SwarmRuntime?.offline,
+      hasOfflineApi: Boolean(window.SwarmOffline),
+      playerCount: typeof snapshot === 'undefined' ? -1 : snapshot.players?.length,
+      gameScript: [...document.scripts].find(script => script.src.includes('/game.js'))?.src,
+      gameResource: performance.getEntriesByType('resource').find(entry => entry.name.includes('/game.js'))?.duration,
+      readyState: document.readyState
+    })`).catch(error => ({ evaluationError: error.message }));
+    throw new Error(`Offline arena did not become ready: ${JSON.stringify({ ...diagnostic, runtimeErrors })}`);
+  }
 }
 
 await value(`(() => {

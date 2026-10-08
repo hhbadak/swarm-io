@@ -55,9 +55,10 @@ const boundaryPoint = { x: 0, y: 0 };
 const BASE_RADIUS = 22;
 const TARGET_FPS = 60;
 const MIN_FPS = 50;
-const BASE_INTERPOLATION_DELAY_MS = 240;
-const MAX_INTERPOLATION_DELAY_MS = 450;
-const MAX_EXTRAPOLATION_MS = 25;
+const BASE_INTERPOLATION_DELAY_MS = 140;
+const MAX_INTERPOLATION_DELAY_MS = 300;
+const MAX_EXTRAPOLATION_MS = 50;
+const SERVER_GRAVITY_SPEED = 55;
 const mobilePerformanceMode = window.SwarmRuntime.native || matchMedia('(pointer: coarse)').matches;
 const maxRenderDpr = Math.min(devicePixelRatio, 2);
 let renderDpr = mobilePerformanceMode ? Math.min(maxRenderDpr, 1) : maxRenderDpr;
@@ -437,6 +438,11 @@ function movementSpeedFor(radius, traitMultiplier = 1) {
   return Math.max(72, 245 / Math.pow(sizeMultiplier, .72)) * traitMultiplier;
 }
 
+function normalizedDirection(x, y) {
+  const length = Math.hypot(x, y) || 1;
+  return { x: x / length, y: y / length };
+}
+
 function updateClock(seconds) {
   const remaining = Math.max(0, Math.ceil(Number(seconds) || 0));
   clockNode.textContent = `${String(Math.floor(remaining / 60)).padStart(2, '0')}:${String(remaining % 60).padStart(2, '0')}`;
@@ -577,31 +583,33 @@ function predictOwnPlayer(player, latest, now) {
   const zoneMultiplier = insideZone(player.position, 'speed') ? 1.3 : 1;
   const speed = movementSpeedFor(player.radius, traitFor(player).speed) * dashMultiplier * zoneMultiplier;
   const snapshotAge = Math.min(250, Math.max(0, now - latest.receivedAt));
+  const gravityZone = snapshot.zones?.find(zone => zone.kind === 'gravity');
+  const gravityDirection = gravityZone && insideZone(player.position, 'gravity')
+    ? normalizedDirection(gravityZone.position.x - player.position.x, gravityZone.position.y - player.position.y)
+    : { x: 0, y: 0 };
+  const velocityX = direction.x * speed + gravityDirection.x * SERVER_GRAVITY_SPEED;
+  const velocityY = direction.y * speed + gravityDirection.y * SERVER_GRAVITY_SPEED;
   const authoritativeEstimate = {
-    x: player.position.x + direction.x * speed * snapshotAge / 1000,
-    y: player.position.y + direction.y * speed * snapshotAge / 1000
+    x: player.position.x + velocityX * snapshotAge / 1000,
+    y: player.position.y + velocityY * snapshotAge / 1000
   };
 
-  // Only hard-snap for a genuine respawn/teleport. Mobile latency can legitimately
-  // put prediction hundreds of world units ahead, so a small threshold causes jumps.
-  if (!localPredictedPosition || Math.hypot(localPredictedPosition.x - player.position.x, localPredictedPosition.y - player.position.y) > 900) {
+  if (!localPredictedPosition) {
     localPredictedPosition = { ...authoritativeEstimate };
   } else {
-    localPredictedPosition.x += direction.x * speed * elapsed / 1000;
-    localPredictedPosition.y += direction.y * speed * elapsed / 1000;
-    const correction = 1 - Math.exp(-elapsed / 240);
+    localPredictedPosition.x += velocityX * elapsed / 1000;
+    localPredictedPosition.y += velocityY * elapsed / 1000;
     const errorX = authoritativeEstimate.x - localPredictedPosition.x;
     const errorY = authoritativeEstimate.y - localPredictedPosition.y;
-    if (moving) {
-      // Never pull against the current input direction: delayed server packets must not
-      // make the local character visibly step backwards. Perpendicular drift is safe to correct.
-      const along = errorX * direction.x + errorY * direction.y;
-      const acceptedAlong = Math.max(0, along);
-      localPredictedPosition.x += (errorX - along * direction.x + acceptedAlong * direction.x) * correction;
-      localPredictedPosition.y += (errorY - along * direction.y + acceptedAlong * direction.y) * correction;
-    } else if (now - localStoppedAt > 400) {
-      localPredictedPosition.x += errorX * correction;
-      localPredictedPosition.y += errorY * correction;
+    const errorDistance = Math.hypot(errorX, errorY);
+    if (moving || now - localStoppedAt > 120) {
+      // Reconcile continuously with a strict per-frame cap. The old one-way correction
+      // accumulated prediction error until it became a visible hard snap.
+      const correction = 1 - Math.exp(-elapsed / 150);
+      const maxCorrection = Math.max(1.25, speed * elapsed / 1000 * .32);
+      const correctionScale = errorDistance > 0 ? Math.min(correction, maxCorrection / errorDistance) : 0;
+      localPredictedPosition.x += errorX * correctionScale;
+      localPredictedPosition.y += errorY * correctionScale;
     }
   }
   localPredictedPosition.x = Math.max(player.radius, Math.min(snapshot.arenaWidth - player.radius, localPredictedPosition.x));
@@ -686,7 +694,7 @@ function render(frameTime = performance.now()) {
   for (const player of playersForRender) if (player.alive && player.score > leaderScore) leaderScore = player.score;
   for (const player of playersForRender) {
     if (!player.alive) continue;
-    const visualPosition = player.id === own?.id ? ownVisualPosition : smoothPosition(player, 85);
+    const visualPosition = player.id === own?.id ? ownVisualPosition : localMode ? smoothPosition(player, 85) : player.position;
     const point = screen(visualPosition ?? player.position, cullPoint);
     const visibleMargin = Math.max(100 * dpr, player.radius * zoom * 2);
     if (point.x < -visibleMargin || point.y < -visibleMargin || point.x > canvas.width + visibleMargin || point.y > canvas.height + visibleMargin) continue;
